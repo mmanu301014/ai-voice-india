@@ -1,0 +1,842 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Mic, Sparkles, Volume2, Settings2, Play, Square, RefreshCw,
+  Trash2, Copy, Check, Sliders, Globe, Layers, AlertCircle, Info,
+  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, RotateCcw
+} from 'lucide-react';
+import { INDIAN_LANGUAGES } from '../data/languages';
+import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
+import { generateSpeech, normalizeText } from '../services/api';
+import { useWebSpeechVoices } from '../hooks/useWebSpeechVoices';
+import AudioPlayer from './AudioPlayer';
+
+export default function VoiceStudio({
+  voices = [],
+  selectedLang,
+  setSelectedLang,
+  initialMode = null,
+  initialStyle = null
+}) {
+  // Hook for real device/browser Web Speech API voices
+  const {
+    allRawVoices,
+    availableVoicesForLang: browserVoices,
+    isSpeaking,
+    previewingVoiceId,
+    previewVoice,
+    stopVoice,
+    refreshVoices,
+    isSupported: isWebSpeechSupported
+  } = useWebSpeechVoices(selectedLang);
+
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
+  const [selectedMode, setSelectedMode] = useState(initialMode || 'youtube');
+  const [text, setText] = useState('');
+  const [speed, setSpeed] = useState(1.0);
+  const [pitch, setPitch] = useState(0.0);
+  const [style, setStyle] = useState(initialStyle || 'Storytelling');
+  const [enableNormalization, setEnableNormalization] = useState(true);
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationResult, setGenerationResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // Current language object
+  const currentLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLang) || INDIAN_LANGUAGES[0];
+
+  // Current mode object
+  const currentModeObj = CREATOR_MODES.find(m => m.id === selectedMode) || CREATOR_MODES[0];
+
+  // Backend neural voices for current language
+  const backendVoicesForLang = voices.filter(v => v.language === selectedLang || v.language === 'all');
+
+  // Combined real available voice pool
+  const combinedVoiceList = [
+    ...browserVoices,
+    ...backendVoicesForLang.filter(bv => !browserVoices.some(wv => wv.name.toLowerCase() === bv.name.toLowerCase()))
+  ];
+
+  // Sync selected voice when language or voice list changes
+  useEffect(() => {
+    if (combinedVoiceList.length > 0) {
+      const exists = combinedVoiceList.some(v => v.id === selectedVoiceId);
+      if (!exists) {
+        setSelectedVoiceId(combinedVoiceList[0].id);
+      }
+    } else {
+      setSelectedVoiceId('');
+    }
+  }, [selectedLang, browserVoices, voices]);
+
+  // Set default prompt text & natural defaults on language change
+  useEffect(() => {
+    if (currentLangObj) {
+      if (!text || INDIAN_LANGUAGES.some(l => l.sample === text)) {
+        setText(currentLangObj.sample);
+      }
+    }
+  }, [selectedLang]);
+
+  // Sync initial mode/style props if updated externally
+  useEffect(() => {
+    if (initialMode) handleSelectMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (initialStyle) setStyle(initialStyle);
+  }, [initialStyle]);
+
+  const activeVoiceMeta = combinedVoiceList.find(v => v.id === selectedVoiceId) || combinedVoiceList[0];
+
+  // Mode Selection Handler: Adjusts style, speed, and helper tip
+  const handleSelectMode = (modeId) => {
+    setSelectedMode(modeId);
+    const m = CREATOR_MODES.find(item => item.id === modeId);
+    if (m) {
+      setStyle(m.suggestedStyle);
+      setSpeed(m.suggestedSpeed);
+      setPitch(m.suggestedPitch || 0.0);
+
+      // If user hasn't typed custom long text, provide mode-specific prompt for current language
+      if (currentLangObj && currentLangObj.modePrompts && currentLangObj.modePrompts[modeId]) {
+        setText(currentLangObj.modePrompts[modeId]);
+      }
+    }
+  };
+
+  // Reset Settings to Defaults
+  const handleResetSettings = () => {
+    setSpeed(currentLangObj?.defaultSpeed || 1.0);
+    setPitch(currentLangObj?.defaultPitch || 0.0);
+    setStyle('Natural');
+    setSelectedMode('youtube');
+    setEnableNormalization(true);
+  };
+
+  const handlePreview = (voiceToPreview, e) => {
+    if (e) e.stopPropagation();
+
+    // If already previewing this voice, stop it
+    if (isSpeaking && previewingVoiceId === voiceToPreview.id) {
+      stopVoice();
+      return;
+    }
+
+    const previewSnippet = text && text.trim() ? text.trim().slice(0, 140) : (currentLangObj?.sample || 'Namaste');
+    previewVoice(voiceToPreview, previewSnippet, speed, pitch);
+  };
+
+  const handleGenerate = async () => {
+    if (!text.trim()) {
+      setErrorMessage('Please enter some text to generate speech.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setErrorMessage('');
+
+    try {
+      const result = await generateSpeech({
+        text: text.trim(),
+        language: selectedLang,
+        voiceId: selectedVoiceId || (activeVoiceMeta ? activeVoiceMeta.id : ''),
+        speed,
+        pitch,
+        style,
+        normalizeText: enableNormalization
+      });
+
+      setGenerationResult(result);
+    } catch (err) {
+      console.warn('Backend generation fallback to live browser Web Speech synthesis:', err);
+      if (activeVoiceMeta && isWebSpeechSupported) {
+        handlePreview(activeVoiceMeta);
+        setErrorMessage('');
+      } else {
+        setErrorMessage(err.message || 'Something went wrong while generating the audio. Please try again.');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleClear = () => {
+    setText('');
+    setErrorMessage('');
+    stopVoice();
+  };
+
+  const charCount = text.length;
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const estSeconds = Math.max(1, Math.round((wordCount / 2.5) / speed));
+
+  return (
+    <div className="container" style={{ paddingBottom: '60px' }}>
+
+      {/* CREATOR MODES BAR */}
+      <div className="glass-card" style={{
+        padding: '16px 20px',
+        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkles size={16} color="#FF9933" />
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#F8FAFC' }}>
+            Creator Modes:
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+          {CREATOR_MODES.map((m) => {
+            const isSelected = selectedMode === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => handleSelectMode(m.id)}
+                className="btn-secondary"
+                style={{
+                  padding: '7px 14px',
+                  fontSize: '0.82rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: isSelected
+                    ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.25) 0%, rgba(255, 81, 47, 0.2) 100%)'
+                    : 'rgba(255, 255, 255, 0.03)',
+                  borderColor: isSelected ? 'rgba(255, 138, 0, 0.5)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isSelected ? '#FFA333' : 'var(--text-secondary)',
+                  fontWeight: isSelected ? 600 : 400
+                }}
+              >
+                <span>{m.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ fontSize: '0.78rem', color: '#00D2FF', fontWeight: 500 }}>
+          {currentModeObj.tag}
+        </div>
+      </div>
+
+      {/* MAIN TWO-COLUMN STUDIO LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1.75fr) minmax(0, 1.25fr)',
+        gap: '24px',
+        alignItems: 'start'
+      }}>
+        {/* LEFT COLUMN: Language Picker, Text Editor, and Audio Player */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* 1. Language Selector Card */}
+          <div className="glass-card" style={{ padding: '20px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Globe size={18} color="#FF9933" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>1. Choose Indian Language</h2>
+              </div>
+              <span className="badge badge-saffron">
+                {INDIAN_LANGUAGES.length} Languages
+              </span>
+            </div>
+
+            {/* Language Pills Horizontal Scroll */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              scrollbarWidth: 'thin'
+            }}>
+              {INDIAN_LANGUAGES.map((lang) => {
+                const isSelected = selectedLang === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    onClick={() => {
+                      stopVoice();
+                      setSelectedLang(lang.code);
+                    }}
+                    style={{
+                      flex: '0 0 auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isSelected
+                        ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.25) 0%, rgba(255, 81, 47, 0.2) 100%)'
+                        : 'rgba(255, 255, 255, 0.04)',
+                      border: isSelected
+                        ? '1px solid rgba(255, 138, 0, 0.5)'
+                        : '1px solid rgba(255, 255, 255, 0.06)',
+                      color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontWeight: isSelected ? 600 : 400
+                    }}
+                  >
+                    <span>{lang.nativeName}</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>({lang.bcp47 || lang.code})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Text Input Card */}
+          <div className="glass-card" style={{ padding: '20px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Mic size={18} color="#00D2FF" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>2. Enter Your Text ({currentLangObj.name})</h2>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  onClick={handleCopy}
+                  className="btn-secondary"
+                  style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                  title="Copy text"
+                >
+                  {copied ? <Check size={14} color="#00D084" /> : <Copy size={14} />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+                <button
+                  onClick={handleClear}
+                  className="btn-secondary"
+                  style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                  title="Clear text"
+                >
+                  <Trash2 size={14} />
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Large Unicode Textarea */}
+            <div style={{ position: 'relative' }}>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={`Enter your ${currentLangObj.name} text here...`}
+                rows={7}
+                style={{
+                  width: '100%',
+                  backgroundColor: 'rgba(7, 9, 14, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#F8FAFC',
+                  padding: '16px',
+                  fontSize: '1.05rem',
+                  lineHeight: '1.6',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            {/* Mode Tip Banner */}
+            <div style={{
+              marginTop: '10px',
+              padding: '8px 12px',
+              background: 'rgba(0, 210, 255, 0.05)',
+              border: '1px solid rgba(0, 210, 255, 0.15)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.78rem',
+              color: '#63E6FF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <Info size={14} />
+              <span>{currentModeObj.creatorTip}</span>
+            </div>
+
+            {/* Sample Prompts for this Language */}
+            <div style={{ marginTop: '14px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                ({currentLangObj.nativeName}):
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {currentLangObj.prompts.map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setText(p)}
+                    className="btn-secondary"
+                    style={{
+                      padding: '5px 12px',
+                      fontSize: '0.78rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    {idx === 0 ? '👋 Welcome Greeting' : idx === 1 ? '🎥 Video Script' : idx === 2 ? '🎧 Support' : '📖 Story'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Metadata Footer */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginTop: '14px',
+              paddingTop: '12px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)'
+            }}>
+              <div>
+                <span>{charCount} / 5,000 characters</span> • <span>{wordCount} words</span>
+              </div>
+              <div>
+                <span> {estSeconds}s</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Error Message if any */}
+          {errorMessage && (
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#FCA5A5',
+              padding: '14px 18px',
+              borderRadius: 'var(--radius-md)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '0.9rem'
+            }}>
+              <AlertCircle size={18} color="#EF4444" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Generation Result Player */}
+          {generationResult && generationResult.success && (
+            <AudioPlayer
+              audioUrl={generationResult.audio_url}
+              filename={generationResult.filename}
+              voiceMeta={activeVoiceMeta}
+              characterCount={generationResult.character_count}
+              providerUsed={generationResult.provider}
+              generationTime={generationResult.generation_time_sec}
+            />
+          )}
+
+        </div>
+
+        {/* RIGHT COLUMN: Enhanced Voice Selector & Natural Voice Settings */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* 3. Voice Selection Panel */}
+          <div className="glass-card" style={{ padding: '20px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Volume2 size={18} color="#00D084" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                  3. Select Voice ({combinedVoiceList.length})
+                </h2>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={refreshVoices}
+                  className="btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                  title="Refresh device and browser voices"
+                >
+                  <RefreshCw size={13} />
+                  <span>Refresh</span>
+                </button>
+
+                <span className="badge badge-emerald">
+                  {currentLangObj.bcp47 || currentLangObj.code}
+                </span>
+              </div>
+            </div>
+
+            {/* Currently Selected Voice Display */}
+            {activeVoiceMeta && (
+              <div style={{
+                background: 'linear-gradient(90deg, rgba(255, 138, 0, 0.1) 0%, rgba(13, 18, 31, 0.8) 100%)',
+                border: '1px solid rgba(255, 138, 0, 0.35)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '12px 16px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: '#FFA333', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                    Active Selected Voice
+                  </div>
+                  <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '0.98rem' }}>
+                    {activeVoiceMeta.name}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {activeVoiceMeta.style || 'Natural Regional'} • {activeVoiceMeta.region || 'India'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={(e) => handlePreview(activeVoiceMeta, e)}
+                    className="btn-secondary"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '0.78rem',
+                      background: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.2)',
+                      borderColor: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.4)',
+                      color: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? '#FCA5A5' : '#FFA333'
+                    }}
+                  >
+                    {isSpeaking && previewingVoiceId === activeVoiceMeta.id ? (
+                      <>
+                        <Square size={13} fill="#EF4444" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={13} fill="#FFA333" />
+                        <span>Preview</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Real Voice Cards List */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              maxHeight: '340px',
+              overflowY: 'auto',
+              paddingRight: '4px'
+            }}>
+              {combinedVoiceList.length > 0 ? (
+                combinedVoiceList.map((voice) => {
+                  const isSelected = selectedVoiceId === voice.id;
+                  const isThisSpeaking = isSpeaking && previewingVoiceId === voice.id;
+
+                  return (
+                    <div
+                      key={voice.id}
+                      onClick={() => setSelectedVoiceId(voice.id)}
+                      className={`glass-card ${isSelected ? '' : 'glass-card-interactive'}`}
+                      style={{
+                        padding: '14px',
+                        background: isSelected
+                          ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.15) 0%, rgba(13, 18, 31, 0.9) 100%)'
+                          : 'rgba(255, 255, 255, 0.02)',
+                        border: isSelected
+                          ? '1px solid rgba(255, 138, 0, 0.5)'
+                          : '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '6px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, color: isSelected ? '#FFA333' : '#F8FAFC' }}>
+                            {voice.name}
+                          </span>
+
+                          {/* Gender Badge */}
+                          {voice.gender && (
+                            <span className={`badge ${voice.gender === 'Female' ? 'badge-saffron' : 'badge-cyan'}`} style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                              {voice.gender}
+                            </span>
+                          )}
+
+                          {/* Status Badge: Indian Regional vs Fallback */}
+                          <span
+                            className={`badge ${voice.isIndianVoice && !voice.isFallback ? 'badge-emerald' : 'badge-cyan'}`}
+                            style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+                          >
+                            {voice.statusLabel || (voice.isIndianVoice ? 'Indian Voice' : 'Fallback')}
+                          </span>
+                        </div>
+
+                        {/* Preview / Stop Button */}
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            onClick={(e) => handlePreview(voice, e)}
+                            className="btn-secondary"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '0.72rem',
+                              background: isThisSpeaking ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                              borderColor: isThisSpeaking ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.1)',
+                              color: isThisSpeaking ? '#FCA5A5' : 'var(--text-secondary)'
+                            }}
+                            title={isThisSpeaking ? "Stop speech" : "Preview this voice"}
+                          >
+                            {isThisSpeaking ? <Square size={12} fill="#EF4444" /> : <Play size={12} />}
+                            <span>{isThisSpeaking ? 'Stop' : 'Preview'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-secondary)'
+                      }}>
+                        <span>Style: <strong style={{ color: '#E2E8F0' }}>{voice.style || 'Natural'}</strong></span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {voice.region || 'India'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{
+                  padding: '24px 16px',
+                  textAlign: 'center',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px dashed rgba(255, 255, 255, 0.1)',
+                  borderRadius: 'var(--radius-md)'
+                }}>
+                  <Info size={24} color="#FFA333" style={{ margin: '0 auto 8px auto' }} />
+                  <p style={{ color: '#CBD5E1', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                    No natural voice for this language is currently available on this device. You can still continue using another available voice.
+                  </p>
+                  <button
+                    onClick={refreshVoices}
+                    className="btn-secondary"
+                    style={{ marginTop: '12px', fontSize: '0.78rem' }}
+                  >
+                    <RefreshCw size={14} />
+                    <span>Check for Voices</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 4. Natural Voice Settings */}
+          <div className="glass-card" style={{ padding: '20px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Settings2 size={18} color="#FF9933" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>4. Voice Settings</h2>
+              </div>
+
+              {/* Reset Settings Button */}
+              <button
+                onClick={handleResetSettings}
+                className="btn-secondary"
+                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                title="Reset speed, pitch, and style to default"
+              >
+                <RotateCcw size={13} />
+                <span>Reset</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Speaking Style */}
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px'
+                }}>
+                  <span>Speaking Style</span>
+                  <span style={{ color: '#FFA333', fontWeight: 600 }}>{style}</span>
+                </div>
+                <select
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'rgba(7, 9, 14, 0.8)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#F8FAFC',
+                    fontSize: '0.9rem',
+                    outline: 'none'
+                  }}
+                >
+                  {VOICE_STYLES.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} — {s.desc}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Speed Slider */}
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px'
+                }}>
+                  <span>Speaking Speed</span>
+                  <span style={{ color: '#00D2FF', fontWeight: 600 }}>{speed}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2.0"
+                  step="0.05"
+                  value={speed}
+                  onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                />
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                  marginTop: '4px'
+                }}>
+                  <span>0.5x Slow</span>
+                  <span>1.0x Normal</span>
+                  <span>2.0x Fast</span>
+                </div>
+              </div>
+
+              {/* Pitch Slider */}
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px'
+                }}>
+                  <span>Voice Pitch</span>
+                  <span style={{ color: '#00D084', fontWeight: 600 }}>
+                    {pitch > 0 ? `+${pitch}` : pitch}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-0.5"
+                  max="0.5"
+                  step="0.05"
+                  value={pitch}
+                  onChange={(e) => setPitch(parseFloat(e.target.value))}
+                />
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-muted)',
+                  marginTop: '4px'
+                }}>
+                  <span>Deeper</span>
+                  <span>Default</span>
+                  <span>Higher</span>
+                </div>
+              </div>
+
+              {/* Normalization toggle */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid rgba(255, 255, 255, 0.05)'
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#F8FAFC' }}>
+
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Auto format ₹, Lakhs, Crores, dates & abbreviations
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableNormalization}
+                  onChange={(e) => setEnableNormalization(e.target.checked)}
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--saffron-primary)', cursor: 'pointer' }}
+                />
+              </div>
+
+            </div>
+          </div>
+
+          {/* 5. GENERATE BUTTON */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !text.trim()}
+            className="btn-primary"
+            style={{ width: '100%', padding: '18px', fontSize: '1.1rem' }}
+          >
+            {isGenerating ? (
+              <>
+                <RefreshCw size={20} className="spin-animation" />
+                <span>Synthesizing Voice...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={20} />
+                <span>Generate Indian AI Voice</span>
+              </>
+            )}
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}

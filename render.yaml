@@ -1,0 +1,54 @@
+# ========================================================
+# AI VOICE INDIA — Render Blueprint Deployment File
+# ========================================================
+# How to deploy:
+#  1. Push this project to a GitHub repository.
+#  2. Go to https://dashboard.render.com → New → Blueprint.
+#  3. Connect the GitHub repo — Render will read this file.
+#  4. IMPORTANT: After services are created, set VITE_API_URL
+#     in the frontend service to the deployed backend URL.
+# ========================================================
+
+services:
+  # ----------------------------------------------------------
+  # 1. BACKEND — FastAPI Python Web Service (Free Tier)
+  # ----------------------------------------------------------
+  - type: web
+    name: ai-voice-india-backend
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: CORS_ORIGINS
+        # Set this to your deployed frontend URL after first deploy, e.g.:
+        # https://ai-voice-india-frontend.onrender.com
+        # During initial setup use * and tighten after both services are live.
+        value: "*"
+
+  # ----------------------------------------------------------
+  # 2. FRONTEND — React / Vite Static Site (Free Tier)
+  # ----------------------------------------------------------
+  - type: web
+    name: ai-voice-india-frontend
+    runtime: static
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        # Set this to your deployed backend URL after first deploy, e.g.:
+        # https://ai-voice-india-backend.onrender.com
+        # Leave blank and set manually in the Render dashboard.
+        value: ""

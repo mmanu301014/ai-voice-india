@@ -1,0 +1,27 @@
+# AI VOICE INDIA — Backend Python Dependencies
+# Pinned for stable Render deployment.
+# Install: pip install -r backend/requirements.txt
+
+# --- Web Server ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+
+# --- Request parsing / validation ---
+pydantic>=2.6.0
+
+# --- Async file I/O (for serving audio files) ---
+aiofiles>=23.2.1
+
+# --- HTTP client (used by edge-tts internally) ---
+requests>=2.31.0
+httpx>=0.27.0
+
+# --- TTS Engines (free, zero-cost) ---
+edge-tts>=6.1.12
+gTTS>=2.5.1
+
+# --- Environment variable loading ---
+python-dotenv>=1.0.1
+
+# --- Async support (required by edge-tts) ---
+anyio>=4.3.0

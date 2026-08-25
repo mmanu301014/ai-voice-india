@@ -127,3 +127,179 @@ export async function generateSpeech({
     throw err;
   }
 }
+
+// ── Auth API ─────────────────────────────────────────────────────────────────
+
+/**
+ * Safely parse a JSON response body.
+ * Returns null if the body is empty or not valid JSON,
+ * so callers never crash with "Unexpected end of JSON input".
+ */
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract a human-readable error message from a FastAPI error response body.
+ * Differentiates:
+ *  - Proxy 5xx with empty body → backend is not running
+ *  - Real backend 5xx with JSON detail → actual server crash
+ *  - 401 → wrong credentials
+ *  - 409 → duplicate email
+ */
+function extractDetail(data, status, fallback) {
+  if (status >= 500 && !data) {
+    // Vite dev proxy returns 500 with empty body when backend is unreachable
+    return 'Cannot reach the backend server. Please make sure the FastAPI backend is running on port 8000.';
+  }
+  if (status >= 500 && data) {
+    // Backend is running but the route itself crashed — show the backend's detail
+    const detail = data.detail;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+    return `Backend server error (HTTP ${status}). Please check the backend terminal for details.`;
+  }
+  if (!data) {
+    if (status === 401) return 'Incorrect email or password.';
+    if (status === 404) return 'API endpoint not found (HTTP 404).';
+    if (status === 409) return 'An account with this email already exists.';
+    return fallback;
+  }
+  const detail = data.detail;
+  if (Array.isArray(detail)) {
+    return detail.map(d => d.msg || (typeof d === 'object' ? JSON.stringify(d) : String(d))).join(', ');
+  }
+  return typeof detail === 'string' && detail.trim() ? detail : fallback;
+}
+
+export async function registerUser({ name, email, password }) {
+  let res;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanName = (name || '').trim();
+  try {
+    res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: cleanName, email: cleanEmail, password }),
+    });
+  } catch (networkErr) {
+    throw new Error('Cannot reach the server. Please make sure the FastAPI backend is running on port 8000.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Registration failed.'));
+  }
+  return data;
+}
+
+export async function loginUser({ email, password }) {
+  let res;
+  const cleanEmail = (email || '').trim().toLowerCase();
+  try {
+    res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, password }),
+    });
+  } catch (networkErr) {
+    throw new Error('Cannot reach the server. Please make sure the FastAPI backend is running on port 8000.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Login failed. Please check your credentials.'));
+  }
+  return data;
+}
+
+export async function fetchCurrentUser(token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/auth/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new Error('Invalid or expired token.');
+  }
+  if (!res.ok) throw new Error('Invalid or expired token.');
+  const data = await safeJson(res);
+  if (!data) throw new Error('Invalid or expired token.');
+  return data;
+}
+
+// ── Payments API ─────────────────────────────────────────────────────────────
+
+export async function fetchPaymentConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/payments/config`);
+    if (!res.ok) throw new Error('Failed to load payment configuration');
+    return await res.json();
+  } catch (err) {
+    console.warn('Payment config fallback:', err);
+    return null;
+  }
+}
+
+export async function createPaymentOrder(planId, token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/payments/create-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ plan: planId })
+    });
+  } catch (networkErr) {
+    throw new Error('Cannot reach the payment server. Please make sure the backend is running.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Failed to create payment order.'));
+  }
+  return data;
+}
+
+export async function verifyPayment({ razorpay_order_id, razorpay_payment_id, razorpay_signature }, token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/payments/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+      })
+    });
+  } catch (networkErr) {
+    throw new Error('Cannot reach payment verification server.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Payment verification failed.'));
+  }
+  return data;
+}
+
+export async function fetchPaymentHistory(token) {
+  try {
+    const res = await fetch(`${API_BASE}/payments/history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!res.ok) return { history: [], total: 0 };
+    return await res.json();
+  } catch (err) {
+    return { history: [], total: 0 };
+  }
+}

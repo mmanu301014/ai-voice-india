@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import DemoBanner from './components/DemoBanner';
 import Hero from './components/Hero';
@@ -8,9 +9,13 @@ import VoiceLibrary from './components/VoiceLibrary';
 import LanguagesShowcase from './components/LanguagesShowcase';
 import HowItWorks from './components/HowItWorks';
 import AboutView from './components/AboutView';
+import PricingView from './components/PricingView';
+import Login from './components/Login';
+import Register from './components/Register';
 import { fetchHealth, fetchVoices } from './services/api';
 
-export default function App() {
+// ── Inner app — only rendered when authenticated ──────────────────────────
+function AuthenticatedApp() {
   const [activeTab, setActiveTab] = useState('studio');
   const [healthData, setHealthData] = useState(null);
   const [voices, setVoices] = useState([]);
@@ -19,7 +24,6 @@ export default function App() {
   const [initialStyle, setInitialStyle] = useState('Storytelling');
 
   useEffect(() => {
-    // Initial fetch of health and voices
     fetchHealth().then(setHealthData).catch(console.error);
     fetchVoices().then((res) => {
       if (res && res.voices) setVoices(res.voices);
@@ -53,10 +57,10 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Top Navigation */}
-      <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        healthData={healthData} 
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        healthData={healthData}
       />
 
       {/* ₹0 Zero-Cost Mode Banner */}
@@ -66,34 +70,43 @@ export default function App() {
       <main style={{ flex: 1 }}>
         {activeTab === 'studio' && (
           <>
-            <Hero onGetStarted={() => {}} />
-            <VoiceStudio 
+            <Hero onGetStarted={() => { }} />
+            <VoiceStudio
               voices={voices}
               selectedLang={selectedLang}
               setSelectedLang={setSelectedLang}
               initialMode={initialMode}
               initialStyle={initialStyle}
             />
-            <CreatorShowcase 
+            <CreatorShowcase
               onSelectMode={handleSelectModeFromShowcase}
               onSelectStyle={handleSelectStyleFromShowcase}
             />
           </>
         )}
 
+        {activeTab === 'pricing' && (
+          <div style={{ paddingTop: '32px' }}>
+            <PricingView onOpenStudio={() => {
+              setActiveTab('studio');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }} />
+          </div>
+        )}
+
         {activeTab === 'voices' && (
           <div style={{ paddingTop: '32px' }}>
-            <VoiceLibrary 
-              voices={voices} 
-              onSelectVoice={handleSelectVoiceFromLibrary} 
+            <VoiceLibrary
+              voices={voices}
+              onSelectVoice={handleSelectVoiceFromLibrary}
             />
           </div>
         )}
 
         {activeTab === 'languages' && (
           <div style={{ paddingTop: '32px' }}>
-            <LanguagesShowcase 
-              onSelectLanguage={handleSelectLanguageFromShowcase} 
+            <LanguagesShowcase
+              onSelectLanguage={handleSelectLanguageFromShowcase}
             />
           </div>
         )}
@@ -121,7 +134,7 @@ export default function App() {
         padding: '36px 0',
         marginTop: 'auto'
       }}>
-        <div className="container" style={{
+        <div className="container footer-content" style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -131,35 +144,41 @@ export default function App() {
           color: 'var(--text-muted)'
         }}>
           <div>
-            <span style={{ color: '#F8FAFC', fontWeight: 700 }}>AI VOICE INDIA</span> — Natural AI voices, made for India.
+            <span style={{ color: '#f8fafcf6', fontWeight: 700 }}>AI VOICE INDIA</span> — Natural AI voices, made for India.
           </div>
 
-          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-            <button 
+          <div className="footer-links" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            <button
               onClick={() => { setActiveTab('studio'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
               Voice Studio
             </button>
-            <button 
+            <button
+              onClick={() => { setActiveTab('pricing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+            >
+              Plans & Pricing
+            </button>
+            <button
               onClick={() => { setActiveTab('voices'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
               Voice Library
             </button>
-            <button 
+            <button
               onClick={() => { setActiveTab('languages'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
               16 Languages
             </button>
-            <button 
+            <button
               onClick={() => { setActiveTab('how-it-works'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
               How it Works
             </button>
-            <button 
+            <button
               onClick={() => { setActiveTab('about'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
@@ -173,5 +192,59 @@ export default function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ── Auth gate — shows Login/Register or the full app ─────────────────────
+function AppRouter() {
+  const { isAuthenticated, loading } = useAuth();
+  const [authView, setAuthView] = useState('login'); // 'login' | 'register'
+
+  // Loading spinner while we validate stored token
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: '3px solid rgba(255, 138, 0, 0.15)',
+            borderTopColor: '#FF8A00',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 16px',
+          }} />
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            Loading AI Voice India…
+          </div>
+        </div>
+        <style>{`
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return authView === 'login'
+      ? <Login onSwitchToRegister={() => setAuthView('register')} />
+      : <Register onSwitchToLogin={() => setAuthView('login')} />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
+// ── Root export — wraps everything in AuthProvider ────────────────────────
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
   );
 }

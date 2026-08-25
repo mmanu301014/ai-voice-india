@@ -50,7 +50,6 @@ export default function HowItWorks({ onOpenStudio }) {
           color: '#FFA333',
           fontWeight: 600
         }}>
-          <Sparkles size={14} />
           <span>Simple 4-Step Process</span>
         </div>
         <h2 style={{ fontSize: '2.4rem', marginBottom: '12px' }}>
@@ -148,7 +147,7 @@ export default function HowItWorks({ onOpenStudio }) {
           className="btn-primary"
           style={{ padding: '14px 32px', fontSize: '1.05rem' }}
         >
-          <Sparkles size={18} />
+
           <span>Launch Voice Studio</span>
         </button>
       </div>

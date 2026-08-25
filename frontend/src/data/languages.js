@@ -9,15 +9,12 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-European",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "Hello! Welcome to AI Voice India.",
+    sample: "",
     prompts: [
-      "Hello! Welcome to AI Voice India.",
-      "In today's video, we explore how Indian creators are revolutionizing AI voiceovers.",
-      "Welcome to customer support. How may I assist you with your booking today?",
-      "Listen closely to the ancient tale of the legendary warrior of the Sahyadri mountains."
+
     ],
     modePrompts: {
-      youtube: "Hey everyone, welcome back to the channel! Today we are exploring the top 5 tech trends in India.",
+      youtube: "",
       reels: "Check out this incredible AI voice made specifically for Indian creators! Follow for more tips.",
       story: "Long ago, nestled between the mystic hills and the flowing river, lived a traveler with a secret.",
       education: "In this lesson, we will understand the fundamental principles of quantum computing in simple terms.",
@@ -35,21 +32,11 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "नमस्कार! AI Voice India में आपका स्वागत है.",
+    sample: "",
     prompts: [
-      "नमस्कार! AI Voice India में आपका स्वागत है.",
-      "आज के इस वीडियो में हम जानेंगे कि भारतीय क्रिएटर कैसे एआई आवाज़ का उपयोग कर रहे हैं।",
-      "कस्टमर केयर में आपका स्वागत है। मैं आज आपकी क्या सहायता कर सकता हूँ?",
-      "एक समय की बात है, हिमालय की वादियों में एक प्राचीन ऋषि तपस्या कर रहे थे।"
+
     ],
-    modePrompts: {
-      youtube: "नमस्ते दोस्तों! चैनल पर आपका स्वागत है। आज हम बात करेंगे भारत के नए टेक इनोवेशन के बारे में।",
-      reels: "क्या आप भी अपनी रील्स के लिए नेचुरल भारतीय आवाज़ ढूंढ रहे हैं? इसे ज़रूर आज़माएँ!",
-      story: "बहुत पुरानी बात है, गंगा किनारे बसे एक छोटे से गाँव में एक साहसी बालक रहता था।",
-      education: "आज के इस अध्याय में हम सौरमंडल और ग्रहों की गति को विस्तार से समझेंगे।",
-      news: "आज की मुख्य खबरें: देश भर में डिजिटल क्रांति और नई तकनीक का अभूतपूर्व विस्तार।",
-      ad: "अब अपनी हर वीडियो को दें एक दमदार आवाज़! AI Voice India के साथ शुरू करें बिल्कुल फ्री।"
-    }
+
   },
   {
     code: "kn",
@@ -61,12 +48,9 @@ export const INDIAN_LANGUAGES = [
     family: "Dravidian",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "ನಮಸ್ಕಾರ! AI Voice India ಗೆ ಸ್ವಾಗತ.",
+    sample: "",
     prompts: [
-      "ನಮಸ್ಕಾರ! AI Voice India ಗೆ ಸ್ವಾಗತ.",
-      "ಇಂದಿನ ವೀಡಿಯೊದಲ್ಲಿ ನಾವು ಕರ್ನಾಟಕದ ಹೊಸ ತಂತ್ರಜ್ಞಾನ ಮತ್ತು ಎಐ ಕ್ರಾಂತಿಯ ಬಗ್ಗೆ ತಿಳಿದುಕೊಳ್ಳೋಣ.",
-      "ಗ್ರಾಹಕ ಸೇವೆಗೆ ಸ್ವಾಗತ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
-      "ಹಿಂದೊಮ್ಮೆ ಸಹ್ಯಾದ್ರಿಯ ಸುಂದರ ಕಣಿವೆಯಲ್ಲಿ ಒಬ್ಬ ಪ್ರತಿಭಾವಂತ ಶಿಲ್ಪಿ ವಾಸಿಸುತ್ತಿದ್ದನು."
+
     ],
     modePrompts: {
       youtube: "ನಮಸ್ಕಾರ ಸ್ನೇಹಿತರೇ, ನಮ್ಮ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ! ಇವತ್ತಿನ ವಿಡಿಯೋದಲ್ಲಿ ಒಂದು ರೋಚಕ ವಿಷಯ ನೋಡೋಣ.",
@@ -87,12 +71,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "नमस्कार! भारतात आपले स्वागत आहे.",
+    sample: "",
     prompts: [
-      "नमस्कार! भारतात आपले स्वागत आहे.",
-      "आजच्या या व्हिडिओमध्ये आपण महाराष्ट्रातील नव्या तंत्रज्ञानाची माहिती घेणार आहोत.",
-      "ग्राहक सेवेत आपले सहर्ष स्वागत आहे. मी आपली काय मदत करू शकेन?",
-      "सह्याद्रीच्या कुशीत वसलेल्या एका छोट्या गावात एक शूरवीर राहत होता."
+
     ],
     modePrompts: {
       youtube: "नमस्कार मित्रांनो! आपल्या चॅनेलवर स्वागत आहे. आज आपण एका खास विषयावर बोलणार आहोत.",
@@ -113,12 +94,8 @@ export const INDIAN_LANGUAGES = [
     family: "Dravidian",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "வணக்கம்! AI Voice India-விற்கு வரவேற்கிறோம்.",
+    sample: "",
     prompts: [
-      "வணக்கம்! AI Voice India-விற்கு வரவேற்கிறோம்.",
-      "இன்றைய வீடியோவில் தமிழ்நாட்டின் புதிய தொழில்நுட்ப புரட்சி பற்றி பார்ப்போம்.",
-      "வாடிக்கையாளர் சேவைக்கு நல்வரவு. இன்று உங்களுக்கு நான் எப்படி உதவ முடியும்?",
-      "முன்னொரு காலத்தில் காவிரியின் கரையில் ஒரு அறிவார்ந்த கவிஞர் வாழ்ந்து வந்தார்."
     ],
     modePrompts: {
       youtube: "வணக்கம் நண்பர்களே! நமது சேனலுக்கு வரவேற்கிறோம். இன்றைய வீடியோவில் ஒரு சுவாரசியமான தகவல்.",
@@ -139,13 +116,8 @@ export const INDIAN_LANGUAGES = [
     family: "Dravidian",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "నమస్కారం! AI Voice India కు స్వాగతం.",
-    prompts: [
-      "నమస్కారం! AI Voice India కు స్వాగతం.",
-      "ఈనాటి వీడియోలో మనం సరికొత్త టెక్నాలజీ విశేషాలను తెలుసుకుందాం.",
-      "కస్టమర్ సపోర్ట్‌కి స్వాగతం. ఈరోజు మీకు నేను ఏ విధంగా సహాయపడగలను?",
-      "అనగనగా ఒక అందమైన అడవిలో ఒక తెలివైన జింక నివసించేది."
-    ],
+    sample: "",
+    prompts: [],
     modePrompts: {
       youtube: "నమస్కారం ఫ్రెండ్స్! మన ఛానెల్‌కి స్వాగతం. ఈరోజు మనం ఒక అద్భుతమైన టాపిక్ చూద్దాం.",
       reels: "మీ ఇన్‌స్టాగ్రామ్ రీల్స్ కోసం పర్‌ఫెక్ట్ తెలుగు వాయిస్ కావాలా? ఈరోజే ట్రై చేయండి!",
@@ -165,12 +137,8 @@ export const INDIAN_LANGUAGES = [
     family: "Dravidian",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "നമസ്കാരം! AI Voice India-യിലേക്ക് സ്വാഗതം.",
+    sample: "",
     prompts: [
-      "നമസ്കാരം! AI Voice India-യിലേക്ക് സ്വാഗതം.",
-      "ഇന്നത്തെ വീഡിയോയിൽ കേരളത്തിലെ പുത്തൻ സാങ്കേതിക മുന്നേറ്റങ്ങൾ പരിചയപ്പെടാം.",
-      "കസ്റ്റമർ കെയറിലേക്ക് സ്വാഗതം. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം?",
-      "പണ്ട് പണ്ട് സഹ്യപർവ്വത നിരകൾക്കിടയിൽ ഒരു ശാന്തമായ സുന്ദര ഗ്രാമമുണ്ടായിരുന്നു."
     ],
     modePrompts: {
       youtube: "നമസ്കാരം സുഹൃത്തുക്കളെ! നമ്മുടെ ചാനലിലേക്ക് സ്വാഗതം. ഇന്നത്തെ പ്രത്യേക എപ്പിസോഡ് കാണാം.",
@@ -191,12 +159,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "নমস্কার! AI Voice India-তে আপনাকে স্বাগতম।",
+    sample: "",
     prompts: [
-      "নমস্কার! AI Voice India-তে আপনাকে স্বাগতম।",
-      "আজকের ভিডিওতে আমরা দেখব কিভাবে নতুন প্রযুক্তি কন্টেন্ট তৈরিতে সাহায্য করছে।",
-      "গ্রাহক সেবায় আপনাকে স্বাগতম। আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
-      "বহু কাল আগে সুন্দরবনের গভীরে একটি রহস্যময় জনপদ ছিল।"
+
     ],
     modePrompts: {
       youtube: "নমস্কার বন্ধুরা! আমাদের চ্যানেলে আপনাদের স্বাগত। আজ একটি দারুণ বিষয় আলোচনা করব।",
@@ -217,12 +182,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "નમસ્તે! AI Voice India માં આપનું સ્વાગત છે.",
+    sample: "",
     prompts: [
-      "નમસ્તે! AI Voice India માં આપનું સ્વાગત છે.",
-      "આજના વિડિયોમાં આપણે ગુજરાતના નવા ટેકનોલોજી ઇનોવેશન વિશે જાણીશું.",
-      "ગ્રાહક સેવામાં આપનું સ્વાગત છે. હું આપની શી મદદ કરી શકું?",
-      "ગીરના જંગલમાં એક બહાદુર અને વફાદાર પ્રાણીની જૂની વાર્તા."
+
     ],
     modePrompts: {
       youtube: "નમસ્તે મિત્રો! આપણી ચેનલ પર સ્વાગત છે. આજે આપણે એક અનોખી માહિતી જાણીશું.",
@@ -243,12 +205,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! AI Voice India ਵਿੱਚ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ।",
+    sample: "",
     prompts: [
-      "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! AI Voice India ਵਿੱਚ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ।",
-      "ਅੱਜ ਦੀ ਵੀਡੀਓ ਵਿੱਚ ਅਸੀਂ ਪੰਜਾਬ ਦੇ ਨਵੇਂ ਕ੍ਰਿਏਟਰਾਂ ਅਤੇ ਤਕਨਾਲੋਜੀ ਦੀ ਗੱਲ ਕਰਾਂਗੇ।",
-      "ਕਸਟਮਰ ਕੇਅਰ ਵਿੱਚ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ। ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
-      "ਪੁਰਾਣੇ ਸਮਿਆਂ ਦੀ ਗੱਲ ਹੈ, ਪੰਜ ਦਰਿਆਵਾਂ ਦੀ ਧਰਤੀ ਤੇ ਇੱਕ ਮਹਾਨ ਯੋਧਾ ਰਹਿੰਦਾ ਸੀ।"
+
     ],
     modePrompts: {
       youtube: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਦੋਸਤੋ! ਸਾਡੇ ਚੈਨਲ 'ਤੇ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ। ਅੱਜ ਦੀ ਵੀਡੀਓ ਬਹੁਤ ਖਾਸ ਹੈ।",
@@ -269,12 +228,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "السلام علیکم! AI Voice India میں آپ کا خیر مقدم ہے۔",
+    sample: "",
     prompts: [
-      "السلام علیکم! AI Voice India میں آپ کا خیر مقدم ہے۔",
-      "آج کی ویڈیو میں ہم ہندوستان کے نئے تخلیق کاروں کے بارے میں بات کریں گے۔",
-      "کسٹمر سپورٹ میں خوش آمدید۔ میں آپ کی کیا مدد کر سکتا ہوں؟",
-      "ایک زمانے میں دکن کی سرسبز وادیوں میں ایک عظیم شاعر قیام پذیر تھا۔"
+
     ],
     modePrompts: {
       youtube: "السلام علیکم دوستو! ہمارے چینل پر خوش آمدید۔ آج ہم ایک دلچسپ موضوع پر بات کریں گے۔",
@@ -295,11 +251,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "ନମସ୍କାର! AI Voice India ରେ ଆପଣଙ୍କୁ ସ୍ୱାଗତ।",
+    sample: "",
     prompts: [
-      "ନମସ୍କାର! AI Voice India ରେ ଆପଣଙ୍କୁ ସ୍ୱାଗତ।",
-      "ଆଜିର ଭିଡିଓରେ ଆମେ ଓଡ଼ିଶାର ଡିଜିଟାଲ ପ୍ରଗତି ବିଷୟରେ ଆଲୋଚନା କରିବା।",
-      "ଗ୍ରାହକ ସେବାକୁ ସ୍ୱାଗତ। ମୁଁ ଆପଣଙ୍କୁ କିପରି ସାହାଯ୍ୟ କରିପାରିବି?"
+
     ],
     modePrompts: {
       youtube: "ନମସ୍କାର ସାଙ୍ଗମାନେ! ଆମ ଚ୍ୟାନେଲକୁ ସ୍ୱାଗତ। ଆଜି ଆମେ ଏକ ନୂଆ ବିଷୟ ଜାଣିବା।",
@@ -320,11 +274,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "নমস্কাৰ! AI Voice India লৈ আপোনাক স্বাগতম।",
+    sample: "",
     prompts: [
-      "নমস্কাৰ! AI Voice India লৈ আপোনাক স্বাগতম।",
-      "আজিৰ ভিডিঅ'ত আমি অসমৰ নতুন প্ৰযুক্তিৰ বিষয়ে আলোচনা কৰিম।",
-      "গ্ৰাহক সেৱালৈ স্বাগতম। মই আপোনাক কেনেকৈ সহায় কৰিব পাৰোঁ?"
+
     ],
     modePrompts: {
       youtube: "নমস্কাৰ বন্ধুসকল! আমাৰ চেনেললৈ স্বাগতম। আজিৰ ভিডিঅ'টি অতি আকৰ্ষণীয়।",
@@ -345,11 +297,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "नमस्कार! AI Voice India त तुमकां येवकार.",
+    sample: "",
     prompts: [
-      "नमस्कार! AI Voice India त तुमकां येवकार.",
-      "आयच्या व्हिडियोत आमी गोंयच्या नव्या तंत्रज्ञानाविशीं जाणून घेवया.",
-      "ग्राहक सेवेंत तुमकां येवकार. हांव तुमकां कशी मदत करूं?"
+
     ],
     modePrompts: {
       youtube: "नमस्कार इश्टांनो! आमच्या चॅनेलाचेर तुमकां येवकार. आयज एक खाशेलो व्हिडियो पळोवया.",
@@ -370,11 +320,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "नमस्ते! AI Voice India मा तपाईंलाई स्वागत छ।",
+    sample: "",
     prompts: [
-      "नमस्ते! AI Voice India मा तपाईंलाई स्वागत छ।",
-      "आजको भिडियोमा हामी नयाँ डिजिटल प्रविधिको बारेमा कुरा गर्नेछौं।",
-      "ग्राहक सेवामा तपाईंलाई स्वागत छ। म कसरी सहयोग गर्न सक्छु?"
+
     ],
     modePrompts: {
       youtube: "नमस्ते साथीहरू! हाम्रो च्यानलमा स्वागत छ। आजको भिडियो एकदमै रोचक हुनेछ।",
@@ -395,12 +343,9 @@ export const INDIAN_LANGUAGES = [
     family: "Indo-Aryan Classical",
     defaultSpeed: 1.0,
     defaultPitch: 0.0,
-    sample: "नमस्ते! AI Voice India इत्यत्र भवतां स्वागतम्।",
+    sample: "",
     prompts: [
-      "नमस्ते! AI Voice India इत्यत्र भवतां स्वागतम्।",
-      "सर्वे भवन्तु सुखिनः सर्वे सन्तु निरामयाः। सर्वे भद्राणि पश्यन्तु मा कश्चिद्दुःखभाग्भवेत्।",
-      "सत्यमेव जयते नानृतम्। सत्येन पन्था विततो देवयानः।",
-      "वसुधैव कुटुम्बकम् - समग्रं विश्वम् अस्माकं परिवारः।"
+
     ],
     modePrompts: {
       youtube: "नमो नमः मित्राणि! अस्माकं संवादे भवतां स्वागतम्। अद्य वयं नूतनविषयं चर्चयामः।",

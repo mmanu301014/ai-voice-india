@@ -1,6 +1,6 @@
 import React from 'react';
-import { 
-  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, 
+import {
+  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone,
   Sparkles, CheckCircle2, Zap, Sliders, Globe, Layers, ArrowRight, Heart, Volume2
 } from 'lucide-react';
 import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
@@ -35,7 +35,7 @@ export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
 
   return (
     <div className="container" style={{ paddingBottom: '60px' }}>
-      
+
       {/* SECTION 1: Made for Indian Creators */}
       <section style={{ marginBottom: '64px' }}>
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
@@ -52,8 +52,8 @@ export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
             color: '#FFA333',
             fontWeight: 600
           }}>
-            <Sparkles size={14} />
-            <span>Tailored for Content Workflows</span>
+
+            <span></span>
           </div>
           <h2 style={{ fontSize: '2.2rem', marginBottom: '12px' }}>
             Made for Indian Creators
@@ -72,7 +72,7 @@ export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
         {/* Creator Modes Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
           gap: '20px'
         }}>
           {CREATOR_MODES.map((mode) => {

@@ -7,7 +7,7 @@ echo ========================================================
 echo.
 
 echo Starting FastAPI Backend on http://localhost:8000 ...
-start "AI Voice India - Backend" cmd /k "python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload"
+start "AI Voice India - Backend" cmd /k "backend\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload"
 
 echo Starting Vite React Frontend on http://localhost:5173 ...
 cd frontend

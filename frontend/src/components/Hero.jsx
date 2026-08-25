@@ -20,7 +20,6 @@ export default function Hero({ onGetStarted }) {
           border: '1px solid rgba(255, 138, 0, 0.3)',
           marginBottom: '18px'
         }}>
-          <Sparkles size={14} color="#FFA333" />
           <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#FFB356' }}>
 
           </span>
@@ -101,7 +100,6 @@ export default function Hero({ onGetStarted }) {
             color: '#63E6FF',
             fontWeight: 500
           }}>
-            <Sparkles size={15} color="#00D2FF" />
             <span>Fast Voice Generation</span>
           </div>
         </div>

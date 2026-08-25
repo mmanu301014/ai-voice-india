@@ -69,15 +69,6 @@ export default function VoiceStudio({
     }
   }, [selectedLang, browserVoices, voices]);
 
-  // Set default prompt text & natural defaults on language change
-  useEffect(() => {
-    if (currentLangObj) {
-      if (!text || INDIAN_LANGUAGES.some(l => l.sample === text)) {
-        setText(currentLangObj.sample);
-      }
-    }
-  }, [selectedLang]);
-
   // Sync initial mode/style props if updated externally
   useEffect(() => {
     if (initialMode) handleSelectMode(initialMode);
@@ -97,11 +88,6 @@ export default function VoiceStudio({
       setStyle(m.suggestedStyle);
       setSpeed(m.suggestedSpeed);
       setPitch(m.suggestedPitch || 0.0);
-
-      // If user hasn't typed custom long text, provide mode-specific prompt for current language
-      if (currentLangObj && currentLangObj.modePrompts && currentLangObj.modePrompts[modeId]) {
-        setText(currentLangObj.modePrompts[modeId]);
-      }
     }
   };
 
@@ -181,7 +167,7 @@ export default function VoiceStudio({
     <div className="container" style={{ paddingBottom: '60px' }}>
 
       {/* CREATOR MODES BAR */}
-      <div className="glass-card" style={{
+      <div className="glass-card creator-modes-container" style={{
         padding: '16px 20px',
         marginBottom: '24px',
         display: 'flex',
@@ -190,13 +176,6 @@ export default function VoiceStudio({
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={16} color="#FF9933" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#F8FAFC' }}>
-            Creator Modes:
-          </span>
-        </div>
-
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto' }}>
           {CREATOR_MODES.map((m) => {
             const isSelected = selectedMode === m.id;
@@ -228,15 +207,10 @@ export default function VoiceStudio({
         </div>
       </div>
 
-      {/* MAIN TWO-COLUMN STUDIO LAYOUT */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.75fr) minmax(0, 1.25fr)',
-        gap: '24px',
-        alignItems: 'start'
-      }}>
+      {/* MAIN STUDIO LAYOUT (Responsive 2-column desktop / 1-column mobile) */}
+      <div className="studio-grid">
         {/* LEFT COLUMN: Language Picker, Text Editor, and Audio Player */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
 
           {/* 1. Language Selector Card */}
           <div className="glass-card" style={{ padding: '20px' }}>
@@ -244,7 +218,9 @@ export default function VoiceStudio({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '14px'
+              marginBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Globe size={18} color="#FF9933" />
@@ -256,13 +232,7 @@ export default function VoiceStudio({
             </div>
 
             {/* Language Pills Horizontal Scroll */}
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              overflowX: 'auto',
-              paddingBottom: '8px',
-              scrollbarWidth: 'thin'
-            }}>
+            <div className="mobile-scroll-x">
               {INDIAN_LANGUAGES.map((lang) => {
                 const isSelected = selectedLang === lang.code;
                 return (
@@ -301,19 +271,19 @@ export default function VoiceStudio({
 
           {/* 2. Text Input Card */}
           <div className="glass-card" style={{ padding: '20px' }}>
-            <div style={{
+            <div className="text-card-header" style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               marginBottom: '12px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <Mic size={18} color="#00D2FF" />
                 <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>2. Enter Your Text ({currentLangObj.name})</h2>
               </div>
 
               {/* Action buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div className="text-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button
                   onClick={handleCopy}
                   className="btn-secondary"
@@ -340,7 +310,7 @@ export default function VoiceStudio({
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder={`Enter your ${currentLangObj.name} text here...`}
+                placeholder="Enter your text here..."
                 rows={7}
                 style={{
                   width: '100%',
@@ -376,30 +346,32 @@ export default function VoiceStudio({
               <span>{currentModeObj.creatorTip}</span>
             </div>
 
-            {/* Sample Prompts for this Language */}
-            <div style={{ marginTop: '14px' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                ({currentLangObj.nativeName}):
+            {/* Sample Prompts for this Language (only if configured) */}
+            {currentLangObj?.prompts && currentLangObj.prompts.length > 0 && (
+              <div style={{ marginTop: '14px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  ({currentLangObj.nativeName}):
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {currentLangObj.prompts.map((p, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setText(p)}
+                      className="btn-secondary"
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '0.78rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      {idx === 0 ? '👋 Welcome Greeting' : idx === 1 ? '🎥 Video Script' : idx === 2 ? '🎧 Support' : '📖 Story'}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {currentLangObj.prompts.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setText(p)}
-                    className="btn-secondary"
-                    style={{
-                      padding: '5px 12px',
-                      fontSize: '0.78rem',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      color: 'var(--text-secondary)'
-                    }}
-                  >
-                    {idx === 0 ? '👋 Welcome Greeting' : idx === 1 ? '🎥 Video Script' : idx === 2 ? '🎧 Support' : '📖 Story'}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Metadata Footer */}
             <div style={{
@@ -454,7 +426,7 @@ export default function VoiceStudio({
         </div>
 
         {/* RIGHT COLUMN: Enhanced Voice Selector & Natural Voice Settings */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
 
           {/* 3. Voice Selection Panel */}
           <div className="glass-card" style={{ padding: '20px' }}>
@@ -462,7 +434,9 @@ export default function VoiceStudio({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '14px'
+              marginBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Volume2 size={18} color="#00D084" />
@@ -498,9 +472,11 @@ export default function VoiceStudio({
                 marginBottom: '14px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
               }}>
-                <div>
+                <div style={{ minWidth: 0, flex: '1 1 auto' }}>
                   <div style={{ fontSize: '0.72rem', color: '#FFA333', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
                     Active Selected Voice
                   </div>
@@ -576,7 +552,9 @@ export default function VoiceStudio({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '6px'
+                        marginBottom: '6px',
+                        flexWrap: 'wrap',
+                        gap: '8px'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 600, color: isSelected ? '#FFA333' : '#F8FAFC' }}>
@@ -828,7 +806,6 @@ export default function VoiceStudio({
               </>
             ) : (
               <>
-                <Sparkles size={20} />
                 <span>Generate Indian AI Voice</span>
               </>
             )}

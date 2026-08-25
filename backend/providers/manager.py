@@ -1,9 +1,18 @@
 import os
+import sys
+from pathlib import Path
 from typing import List, Dict, Any, Optional
-from .base import BaseTTSProvider
-from .edge_tts_provider import EdgeTTSProvider
-from .gtts_provider import GTTSProvider
-from .demo_provider import DemoTTSProvider
+
+try:
+    from .base import BaseTTSProvider
+    from .edge_tts_provider import EdgeTTSProvider
+    from .gtts_provider import GTTSProvider
+    from .demo_provider import DemoTTSProvider
+except (ImportError, ValueError):
+    from providers.base import BaseTTSProvider
+    from providers.edge_tts_provider import EdgeTTSProvider
+    from providers.gtts_provider import GTTSProvider
+    from providers.demo_provider import DemoTTSProvider
 
 class ProviderManager:
     """

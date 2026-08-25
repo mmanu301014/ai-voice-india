@@ -15,10 +15,18 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       host: true,
       allowedHosts: true,
+      cors: {
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      },
       proxy: {
         '/api': {
           target: backendTarget,
           changeOrigin: true,
+          secure: false,
+          ws: true,
         }
       }
     },

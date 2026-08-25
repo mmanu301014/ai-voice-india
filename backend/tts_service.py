@@ -1,9 +1,18 @@
 import os
+import sys
+from pathlib import Path
 import hashlib
 import time
 from typing import List, Dict, Any, Optional
-from .normalizer import normalize_indian_text
-from .providers.manager import ProviderManager
+
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+for p in (str(ROOT_DIR), str(BASE_DIR)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+from normalizer import normalize_indian_text
+from providers.manager import ProviderManager
 
 # Master Language Registry for AI VOICE INDIA
 INDIAN_LANGUAGES: List[Dict[str, Any]] = [

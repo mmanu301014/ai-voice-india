@@ -19,33 +19,22 @@ export default function DemoBanner({ healthData }) {
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ShieldCheck size={16} color="#00D084" />
-          <span style={{ color: '#F8FAFC', fontWeight: 600 }}>₹0 Zero-Cost Commitment:</span>
-          <span>No credit card, UPI, Google Cloud billing, or paid subscriptions required.</span>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color="#FFA333" />
-            <span>Neural Engine: <strong style={{ color: '#F8FAFC' }}>Microsoft Edge Neural + gTTS</strong></span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {isOnline ? (
+            <>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isOnline ? (
-              <>
-                <CheckCircle2 size={14} color="#00D084" />
-                <span style={{ color: '#4EEDA3' }}>FastAPI Backend Ready</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle size={14} color="#FFA333" />
-                <span style={{ color: '#FFA333' }}>Connecting to Local Backend...</span>
-              </>
-            )}
-          </div>
+
+            </>
+          ) : (
+            <>
+              <AlertCircle size={14} color="#FFA333" />
+
+            </>
+          )}
         </div>
       </div>
     </div>
+
   );
 }

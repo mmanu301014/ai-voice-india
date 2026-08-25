@@ -28,7 +28,7 @@ export default function VoiceLibrary({ voices = [], onSelectVoice }) {
       language_name: v.lang,
       region: isIndian ? 'India (Device)' : 'Device Voice',
       gender: v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('heera') ? 'Female' :
-              v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi') ? 'Male' : null,
+        v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('ravi') ? 'Male' : null,
       style: isIndian ? 'Indian Regional Voice' : 'Device System Voice',
       preview_text: 'Hello! Namaste from AI Voice India.',
       is_neural: false,
@@ -46,8 +46,8 @@ export default function VoiceLibrary({ voices = [], onSelectVoice }) {
   const filteredVoices = allCombinedVoices.filter((v) => {
     const matchesGender = selectedGender === 'all' || (v.gender && v.gender.toLowerCase() === selectedGender.toLowerCase());
     const matchesLang = selectedLang === 'all' || v.language === selectedLang || v.language === 'all';
-    const matchesSearch = !searchQuery || 
-      v.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = !searchQuery ||
+      v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.language_name && v.language_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (v.style && v.style.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesGender && matchesLang && matchesSearch;
@@ -127,7 +127,7 @@ export default function VoiceLibrary({ voices = [], onSelectVoice }) {
         </div>
 
         {/* Language Filter */}
-        <div style={{ minWidth: '180px' }}>
+        <div style={{ flex: '1 1 180px', minWidth: '140px' }}>
           <select
             value={selectedLang}
             onChange={(e) => setSelectedLang(e.target.value)}
@@ -166,7 +166,7 @@ export default function VoiceLibrary({ voices = [], onSelectVoice }) {
       {/* Voice Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
         gap: '20px'
       }}>
         {filteredVoices.map((voice) => {
@@ -253,7 +253,7 @@ export default function VoiceLibrary({ voices = [], onSelectVoice }) {
                   className="btn-secondary"
                   style={{ flex: 1, justifyContent: 'center' }}
                 >
-                  <Sparkles size={15} color="#FFA333" />
+
                   <span>Use in Studio</span>
                 </button>
               </div>

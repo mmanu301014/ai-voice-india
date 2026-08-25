@@ -182,12 +182,8 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
       </div>
 
       {/* Controls Bar */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px'
+      <div className="audio-controls-row" style={{
+        marginBottom: '4px'
       }}>
         {/* Play / Pause / Replay */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

@@ -24,7 +24,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.12.10
       - key: CORS_ORIGINS
         # Set this to your deployed frontend URL after first deploy, e.g.:
         # https://ai-voice-india-frontend.onrender.com

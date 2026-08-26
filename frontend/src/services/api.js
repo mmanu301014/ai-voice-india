@@ -5,7 +5,27 @@
  * and production public deployment (via VITE_API_URL environment variable).
  */
 
-const RAW_API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const getBackendHost = () => {
+  let envUrl = (import.meta.env.VITE_API_URL || '').trim();
+  if (envUrl) {
+    // If protocol is omitted (e.g. "ai-voice-india-backend-production.up.railway.app"), prepend https:// (or http:// for localhost)
+    if (!/^https?:\/\//i.test(envUrl) && !envUrl.startsWith('/')) {
+      envUrl = (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))
+        ? `http://${envUrl}`
+        : `https://${envUrl}`;
+    }
+    return envUrl.replace(/\/+$/, '').replace(/\/api\/?$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1' && !host.startsWith('192.168.') && !host.startsWith('10.')) {
+      return 'https://ai-voice-india-backend-production.up.railway.app';
+    }
+  }
+  return '';
+};
+
+const RAW_API_URL = getBackendHost();
 export const API_BASE = RAW_API_URL ? `${RAW_API_URL}/api` : '/api';
 
 /**
@@ -145,27 +165,32 @@ async function safeJson(res) {
 
 /**
  * Extract a human-readable error message from a FastAPI error response body.
- * Differentiates:
- *  - Proxy 5xx with empty body → backend is not running
- *  - Real backend 5xx with JSON detail → actual server crash
- *  - 401 → wrong credentials
- *  - 409 → duplicate email
  */
 function extractDetail(data, status, fallback) {
   if (status >= 500 && !data) {
-    // Vite dev proxy returns 500 with empty body when backend is unreachable
-    return 'Cannot reach the backend server. Please make sure the FastAPI backend is running on port 8000.';
+    return 'Unable to reach the backend server. Please verify the backend is running.';
   }
   if (status >= 500 && data) {
-    // Backend is running but the route itself crashed — show the backend's detail
     const detail = data.detail;
     if (typeof detail === 'string' && detail.trim()) return detail;
-    return `Backend server error (HTTP ${status}). Please check the backend terminal for details.`;
+    return `Backend server error (HTTP ${status}). Please check backend logs.`;
+  }
+  if (status === 404) {
+    return 'API endpoint not found (HTTP 404). Please verify backend deployment.';
+  }
+  if (status === 401) {
+    if (data && typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+    return 'Incorrect email or password. If you have not registered an account yet, please sign up.';
+  }
+  if (status === 409) {
+    if (data && typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+    return 'An account with this email already exists.';
   }
   if (!data) {
-    if (status === 401) return 'Incorrect email or password.';
-    if (status === 404) return 'API endpoint not found (HTTP 404).';
-    if (status === 409) return 'An account with this email already exists.';
     return fallback;
   }
   const detail = data.detail;
@@ -186,7 +211,8 @@ export async function registerUser({ name, email, password }) {
       body: JSON.stringify({ name: cleanName, email: cleanEmail, password }),
     });
   } catch (networkErr) {
-    throw new Error('Cannot reach the server. Please make sure the FastAPI backend is running on port 8000.');
+    console.error('[Auth API] Network / connection error during registration:', networkErr);
+    throw new Error('Unable to connect to the authentication server. Please check your internet connection and backend status.');
   }
   const data = await safeJson(res);
   if (!res.ok) {
@@ -205,7 +231,8 @@ export async function loginUser({ email, password }) {
       body: JSON.stringify({ email: cleanEmail, password }),
     });
   } catch (networkErr) {
-    throw new Error('Cannot reach the server. Please make sure the FastAPI backend is running on port 8000.');
+    console.error('[Auth API] Network / connection error during login:', networkErr);
+    throw new Error('Unable to connect to the authentication server. Please check your internet connection and backend status.');
   }
   const data = await safeJson(res);
   if (!res.ok) {
@@ -230,6 +257,7 @@ export async function fetchCurrentUser(token) {
   if (!data) throw new Error('Invalid or expired token.');
   return data;
 }
+
 
 // ── Payments API ─────────────────────────────────────────────────────────────
 

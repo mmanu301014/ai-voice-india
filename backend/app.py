@@ -156,15 +156,17 @@ class VerifyPaymentRequest(BaseModel):
 @app.post("/api/auth/register", status_code=201)
 async def register(req: RegisterRequest):
     """Register a new user account. Returns JWT on success."""
+    clean_email = req.email.strip().lower()
     try:
         if len(req.password) < 6:
             raise HTTPException(status_code=422, detail="Password must be at least 6 characters.")
 
         user = await create_user(
             name=req.name,
-            email=req.email,
+            email=clean_email,
             plain_password=req.password
         )
+        print(f"[Auth] Registered new user '{clean_email}' (ID: {user['id']})")
         token = create_access_token({"sub": user["email"]})
         return {
             "message": "Account created successfully.",
@@ -178,7 +180,8 @@ async def register(req: RegisterRequest):
                 "plan_details": get_plan("free")
             }
         }
-    except HTTPException:
+    except HTTPException as he:
+        print(f"[Auth] Registration rejected for '{clean_email}': HTTP {he.status_code} - {he.detail}")
         raise
     except Exception as e:
         print(f"[Register Error]: {type(e).__name__}: {e}")
@@ -190,11 +193,13 @@ async def register(req: RegisterRequest):
 @app.post("/api/auth/login")
 async def login(req: LoginRequest):
     """Authenticate and return a JWT access token."""
+    clean_email = req.email.strip().lower()
     try:
         user = await authenticate_user(
-            email=req.email.strip().lower(),
+            email=clean_email,
             plain_password=req.password
         )
+        print(f"[Auth] Successful login for '{clean_email}' (ID: {user['id']})")
         token = create_access_token({"sub": user["email"]})
         return {
             "message": "Login successful.",
@@ -209,7 +214,8 @@ async def login(req: LoginRequest):
                 "subscription_expiry": user.get("subscription_expiry")
             }
         }
-    except HTTPException:
+    except HTTPException as he:
+        print(f"[Auth] Login failed for '{clean_email}': HTTP {he.status_code} - {he.detail}")
         raise
     except Exception as e:
         print(f"[Login Error]: {type(e).__name__}: {e}")

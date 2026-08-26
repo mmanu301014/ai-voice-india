@@ -34,8 +34,13 @@ def hash_password(plain: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     """Verify a plaintext password against its bcrypt hash."""
     try:
-        return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
+        if not plain or not hashed:
+            return False
+        hashed_bytes = hashed.strip().encode("utf-8") if isinstance(hashed, str) else hashed
+        plain_bytes = plain.encode("utf-8") if isinstance(plain, str) else plain
+        return _bcrypt.checkpw(plain_bytes, hashed_bytes)
+    except Exception as err:
+        print(f"[Auth] Password verification error: {err}")
         return False
 
 
@@ -87,13 +92,16 @@ def decode_access_token(token: str) -> dict:
 # ── User CRUD ────────────────────────────────────────────────────────────────
 async def get_user_by_email(email: str) -> Optional[dict]:
     """Fetch a user record by email including subscription plan. Returns None if not found."""
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        return None
     db = await get_db()
     try:
         async with db.execute(
             """SELECT id, name, email, hashed_password, plan, subscription_expiry, 
                       daily_usage_count, last_usage_date, created_at 
-               FROM users WHERE email = ?""",
-            (email.lower().strip(),)
+               FROM users WHERE LOWER(TRIM(email)) = ?""",
+            (clean_email,)
         ) as cursor:
             row = await cursor.fetchone()
             if row:
@@ -201,7 +209,12 @@ async def create_user(name: str, email: str, plain_password: str) -> dict:
     Create a new user. Returns the created user dict (no password).
     Raises HTTPException 409 if email already exists.
     """
-    email_clean = email.lower().strip()
+    email_clean = (email or "").strip().lower()
+    if not email_clean:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A valid email is required."
+        )
 
     # Check for duplicate
     existing = await get_user_by_email(email_clean)
@@ -230,8 +243,16 @@ async def authenticate_user(email: str, plain_password: str) -> dict:
     Verify credentials. Returns user dict on success.
     Raises HTTPException 401 if invalid.
     """
-    user = await get_user_by_email(email)
-    if not user or not verify_password(plain_password, user["hashed_password"]):
+    clean_email = (email or "").strip().lower()
+    user = await get_user_by_email(clean_email)
+    if not user:
+        print(f"[Auth] Login failed: User '{clean_email}' does not exist in database.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password."
+        )
+    if not verify_password(plain_password, user["hashed_password"]):
+        print(f"[Auth] Login failed: Password verification failed for user '{clean_email}'.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password."
@@ -243,3 +264,4 @@ async def authenticate_user(email: str, plain_password: str) -> dict:
         "plan": user.get("plan", "free"),
         "subscription_expiry": user.get("subscription_expiry")
     }
+

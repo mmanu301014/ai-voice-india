@@ -14,15 +14,16 @@ ROOT_DIR = BASE_DIR.parent
 
 DB_PATH_ENV = os.environ.get("DB_PATH")
 if DB_PATH_ENV:
-    DB_PATH = Path(DB_PATH_ENV)
+    DB_PATH = Path(DB_PATH_ENV).resolve()
 elif (ROOT_DIR / "auth.db").exists() or (ROOT_DIR / "README.md").exists():
-    DB_PATH = ROOT_DIR / "auth.db"
+    DB_PATH = (ROOT_DIR / "auth.db").resolve()
 else:
-    DB_PATH = BASE_DIR / "auth.db"
+    DB_PATH = (BASE_DIR / "auth.db").resolve()
 
 
 async def get_db():
     """Return an aiosqlite connection to the auth database."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = await aiosqlite.connect(str(DB_PATH))
     db.row_factory = aiosqlite.Row
     return db
@@ -30,6 +31,7 @@ async def get_db():
 
 async def init_db():
     """Create database tables and run lightweight migrations if they don't already exist."""
+    print(f"[Auth & Payment DB] Initializing SQLite database at: {DB_PATH}")
     db = await get_db()
     try:
         # 1. Base Users Table
@@ -82,6 +84,7 @@ async def init_db():
         """)
 
         await db.commit()
-        print("[Auth & Payment DB] Database tables & migrations ready.")
+        print(f"[Auth & Payment DB] Database tables & migrations ready at: {DB_PATH}")
     finally:
         await db.close()
+

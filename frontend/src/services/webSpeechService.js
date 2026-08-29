@@ -23,7 +23,14 @@ export const LANGUAGE_LOCALE_MAP = {
   as: { primary: 'as-IN', matchPrefixes: ['as-in', 'as_in', 'as'], name: 'Assamese', defaultSpeed: 1.0, defaultPitch: 1.0 },
   kok: { primary: 'kok-IN', matchPrefixes: ['kok-in', 'kok_in', 'kok'], name: 'Konkani', defaultSpeed: 1.0, defaultPitch: 1.0 },
   ne: { primary: 'ne-NP', matchPrefixes: ['ne-np', 'ne-in', 'ne'], name: 'Nepali', defaultSpeed: 1.0, defaultPitch: 1.0 },
-  sa: { primary: 'sa-IN', matchPrefixes: ['sa-in', 'sa_in', 'sa', 'san'], name: 'Sanskrit', defaultSpeed: 1.0, defaultPitch: 1.0 }
+  sa: { primary: 'sa-IN', matchPrefixes: ['sa-in', 'sa_in', 'sa', 'san'], name: 'Sanskrit', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  mni: { primary: 'mni-IN', matchPrefixes: ['mni-in', 'mni_in', 'mni'], name: 'Manipuri', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  ks: { primary: 'ks-IN', matchPrefixes: ['ks-in', 'ks_in', 'ks'], name: 'Kashmiri', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  sd: { primary: 'sd-IN', matchPrefixes: ['sd-in', 'sd_in', 'sd'], name: 'Sindhi', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  mai: { primary: 'mai-IN', matchPrefixes: ['mai-in', 'mai_in', 'mai'], name: 'Maithili', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  sat: { primary: 'sat-IN', matchPrefixes: ['sat-in', 'sat_in', 'sat'], name: 'Santali', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  doi: { primary: 'doi-IN', matchPrefixes: ['doi-in', 'doi_in', 'doi'], name: 'Dogri', defaultSpeed: 1.0, defaultPitch: 1.0 },
+  brx: { primary: 'brx-IN', matchPrefixes: ['brx-in', 'brx_in', 'brx'], name: 'Bodo', defaultSpeed: 1.0, defaultPitch: 1.0 }
 };
 
 // Reliable gender keywords found in standard OS voice names (Microsoft, Google, Apple, Android)
@@ -65,7 +72,7 @@ export function isIndianRegionalVoice(voiceLang = '', voiceName = '') {
   // Check Indian country locale (-in) or Indian language tags
   if (langLower.includes('-in')) return true;
   
-  const indianLangCodes = ['hi', 'kn', 'mr', 'ta', 'te', 'ml', 'bn', 'gu', 'pa', 'ur', 'or', 'as', 'kok', 'ne', 'sa'];
+  const indianLangCodes = ['hi', 'kn', 'mr', 'ta', 'te', 'ml', 'bn', 'gu', 'pa', 'ur', 'or', 'as', 'kok', 'ne', 'sa', 'mni', 'ks', 'sd', 'mai', 'sat', 'doi', 'brx'];
   for (const code of indianLangCodes) {
     if (langLower.startsWith(code)) return true;
   }
@@ -73,7 +80,9 @@ export function isIndianRegionalVoice(voiceLang = '', voiceName = '') {
   if (nameLower.includes('india') || nameLower.includes('hindi') || nameLower.includes('kannada') || 
       nameLower.includes('tamil') || nameLower.includes('telugu') || nameLower.includes('marathi') ||
       nameLower.includes('bengali') || nameLower.includes('gujarati') || nameLower.includes('malayalam') ||
-      nameLower.includes('punjabi')) {
+      nameLower.includes('punjabi') || nameLower.includes('urdu') || nameLower.includes('odia') ||
+      nameLower.includes('assamese') || nameLower.includes('sanskrit') || nameLower.includes('kashmiri') ||
+      nameLower.includes('sindhi') || nameLower.includes('manipuri')) {
     return true;
   }
 

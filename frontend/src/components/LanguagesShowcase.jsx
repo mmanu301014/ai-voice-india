@@ -8,7 +8,7 @@ export default function LanguagesShowcase({ onSelectLanguage }) {
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '36px' }}>
         <h2 style={{ fontSize: '2.2rem', marginBottom: '10px' }}>
-          16 Supported Indian Languages
+          {INDIAN_LANGUAGES.length} Supported Indian Languages
         </h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto' }}>
           Authentic native phonetics and regional intonation across Indo-Aryan, Dravidian, and Classical linguistic families.

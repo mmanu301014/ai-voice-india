@@ -7,30 +7,7 @@ import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
 
 export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
   const whyPoints = [
-    {
-      title: 'Built around Indian languages',
-      desc: 'Native phonetic accuracy across Hindi, Kannada, Tamil, Telugu, Marathi, Malayalam, Bengali, Gujarati, Punjabi, Urdu, and English.'
-    },
-    {
-      title: 'Simple for beginners',
-      desc: 'Clean, distraction-free workflow with pre-built creator prompt templates in regional scripts.'
-    },
-    {
-      title: 'Designed for creators',
-      desc: 'Optimized voice cadences specifically tuned for YouTube videos, Instagram Reels, EdTech, and brand ads.'
-    },
-    {
-      title: 'Easy voice controls',
-      desc: 'Intuitive speed and pitch sliders with instant browser previews and zero over-processing.'
-    },
-    {
-      title: 'Fast workflow',
-      desc: 'Generate, listen, and download studio-ready MP3 audio files in seconds with smart disk caching.'
-    },
-    {
-      title: 'Extensible architecture',
-      desc: 'Modular provider design so more voices and models can easily be added as new providers become available.'
-    }
+
   ];
 
   return (
@@ -170,20 +147,8 @@ export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
             fontWeight: 600
           }}>
             <Sliders size={14} />
-            <span>Dynamic Voice Modulation</span>
           </div>
-          <h2 style={{ fontSize: '2.2rem', marginBottom: '12px' }}>
-            Choose Your Style
-          </h2>
-          <p style={{
-            fontSize: '1.05rem',
-            color: 'var(--text-secondary)',
-            maxWidth: '640px',
-            margin: '0 auto',
-            lineHeight: 1.6
-          }}>
-            Match the exact emotional inflection, cadence, and pacing for your content medium.
-          </p>
+
         </div>
 
         {/* Styles Grid */}
@@ -231,19 +196,7 @@ export default function CreatorShowcase({ onSelectMode, onSelectStyle }) {
         padding: '40px 32px',
         border: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <h2 style={{ fontSize: '2.2rem', marginBottom: '12px' }}>
-            Why AI Voice India?
-          </h2>
-          <p style={{
-            fontSize: '1rem',
-            color: 'var(--text-secondary)',
-            maxWidth: '600px',
-            margin: '0 auto'
-          }}>
-            Engineered from day one for Indian creators, developers, and educators.
-          </p>
-        </div>
+
 
         <div style={{
           display: 'grid',

@@ -6,154 +6,97 @@ export default function Navbar({ activeTab, setActiveTab, healthData }) {
   const { user, logout, isAuthenticated } = useAuth();
 
   const navItems = [
-    { id: 'studio', label: 'Voice Studio', icon: Mic },
-    { id: 'pricing', label: 'Plans & Pricing', icon: CreditCard },
-    { id: 'voices', label: 'Voice Library', icon: Volume2 },
-    { id: 'languages', label: 'Languages', icon: Globe },
-    { id: 'how-it-works', label: 'How it Works', icon: HelpCircle },
-    { id: 'about', label: 'About', icon: Layers }
+    { id: 'studio',       label: 'Voice Studio',     icon: Mic },
+    { id: 'pricing',      label: 'Plans & Pricing',  icon: CreditCard },
+    { id: 'voices',       label: 'Voice Library',    icon: Volume2 },
+    { id: 'languages',    label: 'Languages',        icon: Globe },
+    { id: 'how-it-works', label: 'How It Works',     icon: HelpCircle },
+    { id: 'about',        label: 'About',            icon: Layers },
   ];
 
   return (
     <header className="navbar-header">
       <div className="container navbar-container">
-        {/* Top row / Logo + Right side on mobile */}
+        {/* ── Top Row: Logo + User Controls ── */}
         <div className="navbar-top-row">
-          {/* Brand Logo */}
+          {/* Brand */}
           <div
             onClick={() => setActiveTab('studio')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
           >
+            {/* Logo icon */}
             <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #FF9933 0%, #138808 100%)',
-              padding: '2px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
+              width: '36px', height: '36px',
+              borderRadius: '9px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}>
-              <div style={{
-                width: '100%',
-                height: '100%',
-                background: '#0D1117',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Mic size={20} color="#FF9933" />
-              </div>
+              <Mic size={18} color="#FFFFFF" />
             </div>
 
             <div>
               <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: '1.1rem',
+                letterSpacing: '-0.01em',
+                color: '#FFFFFF',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.2,
               }}>
-                <span style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 800,
-                  fontSize: '1.15rem',
-                  letterSpacing: '-0.02em',
-                  background: 'linear-gradient(90deg, #FFFFFF 0%, #FFA333 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  whiteSpace: 'nowrap'
-                }}>
-                  AI VOICE INDIA
-                </span>
+                AI VOICE INDIA
               </div>
               <div style={{
-                fontSize: '0.7rem',
-                color: 'var(--text-muted)',
-                fontWeight: 500,
-                letterSpacing: '0.02em'
+                fontSize: '0.68rem',
+                color: 'rgba(255,255,255,0.45)',
+                fontWeight: 400,
+                letterSpacing: '0.03em',
               }}>
                 Natural AI voices
               </div>
             </div>
           </div>
 
-          {/* Right side: Status + User for top row */}
+          {/* Right: User + Logout */}
           <div className="navbar-right">
-            {/* Status Indicator - desktop only */}
-            <div className="status-badge-desktop" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-full)',
-              background: 'rgba(0, 208, 132, 0.08)',
-              border: '1px solid rgba(0, 208, 132, 0.2)',
-              fontSize: '0.75rem',
-              color: '#4EEDA3',
-              fontWeight: 500
-            }}>
-
-              <span></span>
-            </div>
-
-            {/* User info + Logout */}
             {isAuthenticated && user && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* User avatar */}
+              <>
+                {/* User chip */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 10px',
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  padding: '5px 12px',
                   borderRadius: 'var(--radius-full)',
-                  background: 'rgba(255, 138, 0, 0.08)',
-                  border: '1px solid rgba(255, 138, 0, 0.2)',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.12)',
                 }}>
                   <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FF9933, #FF512F)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <User size={12} color="#fff" />
+                    <User size={13} color="#FFFFFF" />
                   </div>
                   <span style={{
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: '#FFA333',
-                    maxWidth: '80px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    fontSize: '0.78rem', fontWeight: 600, color: '#FFFFFF',
+                    maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {user.name}
                   </span>
+                  {/* Plan badge */}
                   <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTab('pricing');
-                    }}
+                    onClick={e => { e.stopPropagation(); setActiveTab('pricing'); }}
                     style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: (user.plan === 'pro') ? 'rgba(255, 138, 0, 0.2)' : (user.plan === 'basic') ? 'rgba(0, 210, 255, 0.2)' : 'rgba(0, 208, 132, 0.2)',
-                      color: (user.plan === 'pro') ? '#FFA333' : (user.plan === 'basic') ? '#00D2FF' : '#4EEDA3',
-                      border: (user.plan === 'pro') ? '1px solid rgba(255, 138, 0, 0.4)' : (user.plan === 'basic') ? '1px solid rgba(0, 210, 255, 0.4)' : '1px solid rgba(0, 208, 132, 0.4)',
+                      fontSize: '0.64rem', fontWeight: 700,
+                      padding: '2px 7px', borderRadius: '4px',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)',
                       cursor: 'pointer',
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
                     }}
                     title="View current plan & subscription"
                   >
@@ -161,43 +104,41 @@ export default function Navbar({ activeTab, setActiveTab, healthData }) {
                   </span>
                 </div>
 
-                {/* Logout button */}
+                {/* Logout */}
                 <button
                   id="navbar-logout"
                   onClick={logout}
                   title="Logout"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '6px 10px',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px',
                     borderRadius: 'var(--radius-full)',
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    color: '#FCA5A5',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'rgba(255,255,255,0.55)',
+                    fontSize: '0.78rem', fontWeight: 500,
+                    cursor: 'pointer', transition: 'all 0.18s ease',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.16)';
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.09)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)';
+                    e.currentTarget.style.color = '#FFFFFF';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.55)';
                   }}
                 >
                   <LogOut size={14} />
                   <span>Logout</span>
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* ── Navigation Tabs ── */}
         <nav className="navbar-nav">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -206,23 +147,9 @@ export default function Navbar({ activeTab, setActiveTab, healthData }) {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: 'var(--radius-full)',
-                  background: isActive ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.2) 0%, rgba(255, 81, 47, 0.2) 100%)' : 'transparent',
-                  color: isActive ? '#FFA333' : 'var(--text-secondary)',
-                  fontWeight: isActive ? 600 : 500,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  outline: 'none',
-                  border: isActive ? '1px solid rgba(255, 138, 0, 0.3)' : '1px solid transparent'
-                }}
+                className={isActive ? 'nav-active' : ''}
               >
-                <Icon size={15} />
+                <Icon size={14} />
                 <span>{item.label}</span>
               </button>
             );

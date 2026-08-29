@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Mic, Sparkles, Volume2, Settings2, Play, Square, RefreshCw,
   Trash2, Copy, Check, Sliders, Globe, Layers, AlertCircle, Info,
-  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, RotateCcw
+  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, RotateCcw,
+  Search
 } from 'lucide-react';
 import { INDIAN_LANGUAGES } from '../data/languages';
 import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
@@ -36,6 +37,7 @@ export default function VoiceStudio({
   const [pitch, setPitch] = useState(0.0);
   const [style, setStyle] = useState(initialStyle || 'Storytelling');
   const [enableNormalization, setEnableNormalization] = useState(true);
+  const [searchLangQuery, setSearchLangQuery] = useState('');
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
@@ -44,6 +46,19 @@ export default function VoiceStudio({
 
   // Current language object
   const currentLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLang) || INDIAN_LANGUAGES[0];
+
+  // Filtered languages for the vertical sidebar navigation
+  const filteredLanguages = INDIAN_LANGUAGES.filter(lang => {
+    if (!searchLangQuery.trim()) return true;
+    const q = searchLangQuery.toLowerCase().trim();
+    return (
+      lang.name.toLowerCase().includes(q) ||
+      (lang.nativeName && lang.nativeName.toLowerCase().includes(q)) ||
+      (lang.code && lang.code.toLowerCase().includes(q)) ||
+      (lang.bcp47 && lang.bcp47.toLowerCase().includes(q)) ||
+      (lang.region && lang.region.toLowerCase().includes(q))
+    );
+  });
 
   // Current mode object
   const currentModeObj = CREATOR_MODES.find(m => m.id === selectedMode) || CREATOR_MODES[0];
@@ -167,109 +182,103 @@ export default function VoiceStudio({
     <div className="container" style={{ paddingBottom: '60px' }}>
 
       {/* CREATOR MODES BAR */}
-      <div className="glass-card creator-modes-container" style={{
-        padding: '16px 20px',
-        marginBottom: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+      <div className="creator-mode-bar" style={{ marginBottom: '20px', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+        <div className="mode-bar-inner">
           {CREATOR_MODES.map((m) => {
             const isSelected = selectedMode === m.id;
             return (
               <button
                 key={m.id}
                 onClick={() => handleSelectMode(m.id)}
-                className="btn-secondary"
-                style={{
-                  padding: '7px 14px',
-                  fontSize: '0.82rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: isSelected
-                    ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.25) 0%, rgba(255, 81, 47, 0.2) 100%)'
-                    : 'rgba(255, 255, 255, 0.03)',
-                  borderColor: isSelected ? 'rgba(255, 138, 0, 0.5)' : 'rgba(255, 255, 255, 0.08)',
-                  color: isSelected ? '#FFA333' : 'var(--text-secondary)',
-                  fontWeight: isSelected ? 600 : 400
-                }}
+                className={`mode-tab-btn${isSelected ? ' active' : ''}`}
               >
                 <span>{m.name}</span>
               </button>
             );
           })}
-        </div>
-
-        <div style={{ fontSize: '0.78rem', color: '#00D2FF', fontWeight: 500 }}>
-          {currentModeObj.tag}
+          <div style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500, whiteSpace: 'nowrap', paddingRight: '4px' }}>
+            {currentModeObj.tag}
+          </div>
         </div>
       </div>
 
-      {/* MAIN STUDIO LAYOUT (Responsive 2-column desktop / 1-column mobile) */}
-      <div className="studio-grid">
-        {/* LEFT COLUMN: Language Picker, Text Editor, and Audio Player */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
+      {/* MAIN STUDIO LAYOUT (3-Column Desktop: Left Languages Sidebar | Center Text Editor | Right Voice Library & Settings) */}
+      <div className="studio-grid-3col">
 
-          {/* 1. Language Selector Card */}
-          <div className="glass-card" style={{ padding: '20px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '14px',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Globe size={18} color="#FF9933" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>1. Choose Indian Language</h2>
-              </div>
-              <span className="badge badge-saffron">
-                {INDIAN_LANGUAGES.length} Languages
-              </span>
+        {/* 1. LEFT COLUMN: Permanent Full-Height Languages Navigation Sidebar */}
+        <div className="studio-languages-panel">
+          <div className="studio-lang-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={18} color="#FF9933" />
+              <h2 style={{ fontSize: '1.02rem', fontWeight: 700, letterSpacing: '0.02em' }}>
+                Languages
+              </h2>
             </div>
+            <span className="badge badge-saffron" style={{ fontSize: '0.66rem', padding: '2px 7px' }}>
+              {INDIAN_LANGUAGES.length}
+            </span>
+          </div>
 
-            {/* Language Pills Horizontal Scroll */}
-            <div className="mobile-scroll-x">
-              {INDIAN_LANGUAGES.map((lang) => {
+          {/* Search Box */}
+          <div className="studio-lang-search-wrapper">
+            <Search size={14} className="studio-lang-search-icon" />
+            <input
+              type="text"
+              placeholder="Search languages..."
+              value={searchLangQuery}
+              onChange={(e) => setSearchLangQuery(e.target.value)}
+              className="studio-lang-search-input"
+              aria-label="Search languages"
+            />
+          </div>
+
+          {/* Vertical Scrollable Language List */}
+          <div className="studio-lang-list">
+            {filteredLanguages.length > 0 ? (
+              filteredLanguages.map((lang) => {
                 const isSelected = selectedLang === lang.code;
                 return (
                   <button
                     key={lang.code}
+                    type="button"
                     onClick={() => {
                       stopVoice();
                       setSelectedLang(lang.code);
                     }}
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      background: isSelected
-                        ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.25) 0%, rgba(255, 81, 47, 0.2) 100%)'
-                        : 'rgba(255, 255, 255, 0.04)',
-                      border: isSelected
-                        ? '1px solid rgba(255, 138, 0, 0.5)'
-                        : '1px solid rgba(255, 255, 255, 0.06)',
-                      color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      fontWeight: isSelected ? 600 : 400
-                    }}
+                    className={`studio-lang-item ${isSelected ? 'active' : ''}`}
+                    title={`${lang.name} (${lang.nativeName})`}
                   >
-                    <span>{lang.nativeName}</span>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>({lang.bcp47 || lang.code})</span>
+                    <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: isSelected ? 600 : 500 }}>{lang.name}</span>
+                      {lang.nativeName && (
+                        <span style={{ fontSize: '0.74rem', opacity: 0.65, marginLeft: '6px' }}>
+                          {lang.nativeName}
+                        </span>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <Check size={15} className="lang-check-icon" style={{ flexShrink: 0, marginLeft: '6px' }} />
+                    )}
                   </button>
                 );
-              })}
-            </div>
+              })
+            ) : (
+              <div style={{
+                padding: '16px 8px',
+                fontSize: '0.8rem',
+                color: 'var(--text-muted)',
+                textAlign: 'center'
+              }}>
+                No language found
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* 2. Text Input Card */}
+        {/* 2. CENTER COLUMN: Text Editor and Generated Audio Output */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
+
+          {/* 1. Text Input Card */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div className="text-card-header" style={{
               display: 'flex',
@@ -279,7 +288,9 @@ export default function VoiceStudio({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <Mic size={18} color="#00D2FF" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>2. Enter Your Text ({currentLangObj.name})</h2>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                  1. Enter Your Text ({currentLangObj.name})
+                </h2>
               </div>
 
               {/* Action buttons */}
@@ -310,8 +321,8 @@ export default function VoiceStudio({
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Enter your text here..."
-                rows={7}
+                placeholder={`Enter your ${currentLangObj.name} text here...`}
+                rows={8}
                 style={{
                   width: '100%',
                   backgroundColor: 'rgba(7, 9, 14, 0.6)',
@@ -388,7 +399,7 @@ export default function VoiceStudio({
                 <span>{charCount} / 5,000 characters</span> • <span>{wordCount} words</span>
               </div>
               <div>
-                <span> {estSeconds}s</span>
+                <span>{estSeconds}s</span>
               </div>
             </div>
           </div>
@@ -425,23 +436,23 @@ export default function VoiceStudio({
 
         </div>
 
-        {/* RIGHT COLUMN: Enhanced Voice Selector & Natural Voice Settings */}
+        {/* 3. RIGHT COLUMN: Select Voice & Natural Voice Settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
 
-          {/* 3. Voice Selection Panel */}
+          {/* 2. Select Voice Card (Contains ONLY Voice Cards, Active Voice, Preview, Refresh) */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '14px',
+              marginBottom: '16px',
               flexWrap: 'wrap',
               gap: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Volume2 size={18} color="#00D084" />
                 <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-                  3. Select Voice ({combinedVoiceList.length})
+                  2. Select Voice ({combinedVoiceList.length})
                 </h2>
               </div>
 
@@ -462,28 +473,28 @@ export default function VoiceStudio({
               </div>
             </div>
 
-            {/* Currently Selected Voice Display */}
+            {/* Currently Active Selected Voice Display */}
             {activeVoiceMeta && (
               <div style={{
                 background: 'linear-gradient(90deg, rgba(255, 138, 0, 0.1) 0%, rgba(13, 18, 31, 0.8) 100%)',
                 border: '1px solid rgba(255, 138, 0, 0.35)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '12px 16px',
+                padding: '12px 14px',
                 marginBottom: '14px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '10px'
+                gap: '8px'
               }}>
                 <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#FFA333', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                  <div style={{ fontSize: '0.68rem', color: '#FFA333', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
                     Active Selected Voice
                   </div>
-                  <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '0.98rem' }}>
+                  <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '0.96rem' }}>
                     {activeVoiceMeta.name}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                     {activeVoiceMeta.style || 'Natural Regional'} • {activeVoiceMeta.region || 'India'}
                   </div>
                 </div>
@@ -502,12 +513,12 @@ export default function VoiceStudio({
                   >
                     {isSpeaking && previewingVoiceId === activeVoiceMeta.id ? (
                       <>
-                        <Square size={13} fill="#EF4444" />
+                        <Square size={12} fill="#EF4444" />
                         <span>Stop</span>
                       </>
                     ) : (
                       <>
-                        <Play size={13} fill="#FFA333" />
+                        <Play size={12} fill="#FFA333" />
                         <span>Preview</span>
                       </>
                     )}
@@ -516,15 +527,23 @@ export default function VoiceStudio({
               </div>
             )}
 
-            {/* Real Voice Cards List */}
+            {/* Available Voices Subheader */}
             <div style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              maxHeight: '340px',
-              overflowY: 'auto',
-              paddingRight: '4px'
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.76rem',
+              color: 'var(--text-muted)',
+              fontWeight: 600,
+              marginBottom: '10px',
+              padding: '0 2px'
             }}>
+              <span>Available Voices ({combinedVoiceList.length})</span>
+              <span style={{ color: '#00D2FF' }}>{currentLangObj.name}</span>
+            </div>
+
+            {/* Real Voice Cards Scroll List */}
+            <div className="voice-cards-scroll">
               {combinedVoiceList.length > 0 ? (
                 combinedVoiceList.map((voice) => {
                   const isSelected = selectedVoiceId === voice.id;
@@ -536,7 +555,7 @@ export default function VoiceStudio({
                       onClick={() => setSelectedVoiceId(voice.id)}
                       className={`glass-card ${isSelected ? '' : 'glass-card-interactive'}`}
                       style={{
-                        padding: '14px',
+                        padding: '12px 14px',
                         background: isSelected
                           ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.15) 0%, rgba(13, 18, 31, 0.9) 100%)'
                           : 'rgba(255, 255, 255, 0.02)',
@@ -554,16 +573,16 @@ export default function VoiceStudio({
                         justifyContent: 'space-between',
                         marginBottom: '6px',
                         flexWrap: 'wrap',
-                        gap: '8px'
+                        gap: '6px'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, color: isSelected ? '#FFA333' : '#F8FAFC' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, color: isSelected ? '#FFA333' : '#F8FAFC', fontSize: '0.9rem' }}>
                             {voice.name}
                           </span>
 
                           {/* Gender Badge */}
                           {voice.gender && (
-                            <span className={`badge ${voice.gender === 'Female' ? 'badge-saffron' : 'badge-cyan'}`} style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                            <span className={`badge ${voice.gender === 'Female' ? 'badge-saffron' : 'badge-cyan'}`} style={{ fontSize: '0.66rem', padding: '1px 6px' }}>
                               {voice.gender}
                             </span>
                           )}
@@ -571,7 +590,7 @@ export default function VoiceStudio({
                           {/* Status Badge: Indian Regional vs Fallback */}
                           <span
                             className={`badge ${voice.isIndianVoice && !voice.isFallback ? 'badge-emerald' : 'badge-cyan'}`}
-                            style={{ fontSize: '0.65rem', padding: '1px 6px' }}
+                            style={{ fontSize: '0.63rem', padding: '1px 6px' }}
                           >
                             {voice.statusLabel || (voice.isIndianVoice ? 'Indian Voice' : 'Fallback')}
                           </span>
@@ -601,11 +620,11 @@ export default function VoiceStudio({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        fontSize: '0.78rem',
+                        fontSize: '0.76rem',
                         color: 'var(--text-secondary)'
                       }}>
                         <span>Style: <strong style={{ color: '#E2E8F0' }}>{voice.style || 'Natural'}</strong></span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           {voice.region || 'India'}
                         </span>
                       </div>
@@ -637,7 +656,7 @@ export default function VoiceStudio({
             </div>
           </div>
 
-          {/* 4. Natural Voice Settings */}
+          {/* 3. Natural Voice Settings */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
@@ -647,7 +666,7 @@ export default function VoiceStudio({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Settings2 size={18} color="#FF9933" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>4. Voice Settings</h2>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>3. Voice Settings</h2>
               </div>
 
               {/* Reset Settings Button */}
@@ -673,7 +692,7 @@ export default function VoiceStudio({
                   marginBottom: '6px'
                 }}>
                   <span>Speaking Style</span>
-                  <span style={{ color: '#FFA333', fontWeight: 600 }}>{style}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{style}</span>
                 </div>
                 <select
                   value={style}
@@ -705,7 +724,7 @@ export default function VoiceStudio({
                   marginBottom: '6px'
                 }}>
                   <span>Speaking Speed</span>
-                  <span style={{ color: '#00D2FF', fontWeight: 600 }}>{speed}x</span>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{speed}x</span>
                 </div>
                 <input
                   type="range"
@@ -738,7 +757,7 @@ export default function VoiceStudio({
                   marginBottom: '6px'
                 }}>
                   <span>Voice Pitch</span>
-                  <span style={{ color: '#00D084', fontWeight: 600 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
                     {pitch > 0 ? `+${pitch}` : pitch}
                   </span>
                 </div>
@@ -796,12 +815,12 @@ export default function VoiceStudio({
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !text.trim()}
-            className="btn-primary"
-            style={{ width: '100%', padding: '18px', fontSize: '1.1rem' }}
+            className="btn-generate"
+            style={{ width: '100%', padding: '16px', fontSize: '1.05rem' }}
           >
             {isGenerating ? (
               <>
-                <RefreshCw size={20} className="spin-animation" />
+                <RefreshCw size={18} className="spin-animation" />
                 <span>Synthesizing Voice...</span>
               </>
             ) : (

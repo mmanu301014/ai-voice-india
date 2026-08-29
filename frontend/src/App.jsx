@@ -128,12 +128,7 @@ function AuthenticatedApp() {
       </main>
 
       {/* Footer */}
-      <footer style={{
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-        backgroundColor: 'rgba(7, 9, 14, 0.95)',
-        padding: '36px 0',
-        marginTop: 'auto'
-      }}>
+      <footer className="site-footer">
         <div className="container footer-content" style={{
           display: 'flex',
           alignItems: 'center',
@@ -141,53 +136,30 @@ function AuthenticatedApp() {
           flexWrap: 'wrap',
           gap: '16px',
           fontSize: '0.85rem',
-          color: 'var(--text-muted)'
+          color: 'rgba(255,255,255,0.4)'
         }}>
           <div>
-            <span style={{ color: '#f8fafcf6', fontWeight: 700 }}>AI VOICE INDIA</span> — Natural AI voices, made for India.
+            <span style={{ color: '#FFFFFF', fontWeight: 700 }}>AI VOICE INDIA</span>{' '}
+            — Natural AI voices, made for India.
           </div>
 
           <div className="footer-links" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => { setActiveTab('studio'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              Voice Studio
-            </button>
-            <button
-              onClick={() => { setActiveTab('pricing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              Plans & Pricing
-            </button>
-            <button
-              onClick={() => { setActiveTab('voices'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              Voice Library
-            </button>
-            <button
-              onClick={() => { setActiveTab('languages'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              16 Languages
-            </button>
-            <button
-              onClick={() => { setActiveTab('how-it-works'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              How it Works
-            </button>
-            <button
-              onClick={() => { setActiveTab('about'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              About
-            </button>
+            <button onClick={() => { setActiveTab('studio'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>Voice Studio</button>
+            <button onClick={() => { setActiveTab('pricing'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>Plans &amp; Pricing</button>
+            <button onClick={() => { setActiveTab('voices'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>Voice Library</button>
+            <button onClick={() => { setActiveTab('languages'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>Languages</button>
+            <button onClick={() => { setActiveTab('how-it-works'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>How it Works</button>
+            <button onClick={() => { setActiveTab('about'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>About</button>
           </div>
 
-          <div style={{ color: '#00D084', fontSize: '0.8rem', fontWeight: 600 }}>
-            ₹0 Free Dev Mode • Zero Cards • Indian Regional Speech
+          <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.3)' }}>
+            Natural Indian Speech · Zero Cost Dev Mode
           </div>
         </div>
       </footer>

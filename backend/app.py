@@ -32,11 +32,13 @@ from database import init_db
 from plans import PLANS, get_plan
 from auth import (
     create_user, authenticate_user, create_access_token,
-    decode_access_token, get_user_by_email, get_user_by_id, check_and_increment_usage
+    decode_access_token, get_user_by_email, get_user_by_id, check_and_increment_usage,
+    check_character_limit, increment_characters_used
 )
 from payments import (
     create_razorpay_order, verify_razorpay_payment, process_razorpay_webhook,
-    get_user_payment_history, get_razorpay_key_id, is_live_keys_configured
+    get_user_payment_history, get_razorpay_key_id, is_live_keys_configured,
+    mock_upgrade_user_plan
 )
 
 # ── Lifespan: initialise DB on startup ──────────────────────────────────────
@@ -75,15 +77,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         )
     return user
 
-# CORS middleware for frontend access (supporting localhost, mobile devices, and Cloudflare tunnels)
-raw_origins = os.environ.get("CORS_ORIGINS", "*")
-allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-if "*" in allowed_origins or not allowed_origins:
-    cors_origins = ["*"]
-    origin_regex = r"^https?://.*$"
-else:
-    cors_origins = allowed_origins
-    origin_regex = None
+# CORS middleware for frontend access (supporting localhost, local network, mobile devices, and Railway/Cloudflare)
+raw_origins = os.environ.get("CORS_ORIGINS", "")
+configured_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+default_local_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+]
+cors_origins = list(set(default_local_origins + configured_origins))
+origin_regex = r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|.*\.railway\.app|.*\.vercel\.app|.*\.onrender\.com)(:\d+)?$"
 
 app.add_middleware(
     CORSMiddleware,
@@ -145,6 +153,9 @@ class LoginRequest(BaseModel):
 # ── Payment Request Models ───────────────────────────────────────────────────
 class CreateOrderRequest(BaseModel):
     plan: str = Field(..., description="Target plan ID ('basic' or 'pro')")
+
+class MockUpgradeRequest(BaseModel):
+    plan: str = Field(..., description="Target plan ID ('free', 'basic', 'pro', or 'business')")
 
 class VerifyPaymentRequest(BaseModel):
     razorpay_order_id: str = Field(..., description="Razorpay Order ID")
@@ -235,6 +246,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     Returns current authenticated user info, current plan, and generation limits.
     """
     plan_info = get_plan(current_user.get("plan", "free"))
+    total_char_limit = plan_info.get("total_character_limit", 200)
+    characters_used = current_user.get("characters_used", 0)
     return {
         "id": current_user["id"],
         "name": current_user["name"],
@@ -243,7 +256,10 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "plan_details": plan_info,
         "subscription_expiry": current_user.get("subscription_expiry"),
         "daily_usage_count": current_user.get("daily_usage_count", 0),
-        "daily_limit": plan_info.get("daily_generation_limit", 15)
+        "daily_limit": plan_info.get("daily_generation_limit", 15),
+        "characters_used": characters_used,
+        "character_limit": total_char_limit,
+        "characters_remaining": max(0, total_char_limit - characters_used)
     }
 
 # ── Payment Endpoints ────────────────────────────────────────────────────────
@@ -309,6 +325,24 @@ async def get_payment_history(current_user: dict = Depends(get_current_user)):
     history = await get_user_payment_history(current_user["id"])
     return {"history": history, "total": len(history)}
 
+@app.post("/api/payments/mock-upgrade")
+async def mock_upgrade(
+    req: MockUpgradeRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Development / Test Mode plan upgrade simulator.
+    Instantly activates a subscription plan without real payment.
+    Safe for local dev; raises 403 in production with live Razorpay keys.
+    """
+    if is_live_keys_configured():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mock upgrades are only available in test/development mode."
+        )
+    result = await mock_upgrade_user_plan(current_user, req.plan)
+    return result
+
 # ── Health & Root Endpoints (unchanged) ──────────────────────────────────────
 
 @app.get("/")
@@ -366,14 +400,27 @@ async def normalize_text(req: NormalizeRequest):
     }
 
 @app.post("/api/generate")
-async def generate_speech(req: GenerateRequest):
+async def generate_speech(
+    req: GenerateRequest,
+    current_user: dict = Depends(get_current_user)
+):
     """
     Generates natural-sounding speech for input text in the specified Indian language.
+    Requires authentication and enforces per-plan character limits server-side.
+    Characters are only deducted AFTER successful audio generation.
     Returns audio URL and metadata.
     """
+    # Count actual submitted characters (server-side, cannot be spoofed)
+    submitted_text = req.text
+    char_count = len(submitted_text)
+
+    # ── SERVER-SIDE: Check character limit BEFORE generating ────────────────
+    await check_character_limit(current_user["id"], char_count)
+
+    # ── Generate audio (only deduct if this succeeds) ───────────────────────
     try:
         result = await tts_service.generate_speech(
-            text=req.text,
+            text=submitted_text,
             voice_id=req.voice_id,
             language=req.language,
             speed=req.speed,
@@ -381,16 +428,25 @@ async def generate_speech(req: GenerateRequest):
             style=req.style,
             normalize_text_flag=req.normalize_text
         )
-        return result
     except ValueError as ve:
+        # Do NOT deduct characters — generation failed
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        # User-friendly error message without raw internal stack leaks
+        # Do NOT deduct characters — generation failed
         print(f"[Generate Error]: {e}")
         raise HTTPException(
             status_code=500,
             detail="Something went wrong while generating the audio. Please try again."
         )
+
+    # ── SUCCESS: Only now deduct characters ─────────────────────────────────
+    usage = await increment_characters_used(current_user["id"], char_count)
+    print(f"[Generate] User '{current_user['email']}' used {char_count} chars. "
+          f"Total used: {usage['characters_used']}/{usage['character_limit']}")
+
+    # Attach usage info to response
+    result["usage"] = usage
+    return result
 
 @app.get("/api/audio/{filename}")
 async def get_audio_file(filename: str):
@@ -412,4 +468,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("HOST", "0.0.0.0")
-    uvicorn.run("app:app", host=host, port=port, reload=False)
+    uvicorn.run(app, host=host, port=port)

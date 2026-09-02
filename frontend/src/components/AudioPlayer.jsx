@@ -134,12 +134,12 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
           </div>
 
           <div>
-            <h3 style={{ fontSize: '1.05rem', color: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               Generated Speech Ready
               <span className="badge badge-emerald">HD Audio</span>
             </h3>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              Voice: <strong style={{ color: '#FFA333' }}>{voiceMeta?.name || 'Selected Voice'}</strong> • {characterCount} chars
+              Voice: <strong style={{ color: 'var(--saffron-primary)' }}>{voiceMeta?.name || 'Selected Voice'}</strong> • {characterCount} chars
               {generationTime ? ` • Generated in ${generationTime}s` : ''}
             </div>
           </div>

@@ -192,8 +192,7 @@ function GoogleIcon() {
   );
 }
 
-// ── Main Login Page Component ────────────────────────────────────────────────
-export default function Login({ onSwitchToRegister }) {
+export default function Login({ onSwitchToRegister, onSuccess }) {
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -221,6 +220,9 @@ export default function Login({ onSwitchToRegister }) {
     setLoading(true);
     try {
       await login(cleanEmail, password);
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {

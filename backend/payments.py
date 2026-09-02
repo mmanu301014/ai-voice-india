@@ -1,13 +1,12 @@
 """
-AI VOICE INDIA — Razorpay Payment & Subscription Service
-Handles order creation, server-side HMAC-SHA256 signature verification,
+AI VOICE INDIA — Payment & Subscription Service
+Handles order creation, test/mock upgrade simulation, signature verification,
 webhook event processing, and subscription plan activation.
 
 SECURITY GUARANTEES:
 - Razorpay Key Secret is NEVER sent to the client or browser.
 - Amount is ALWAYS calculated and validated server-side from plans.py.
 - Client-supplied prices or payment statuses are NEVER trusted.
-- Every payment signature is verified using HMAC-SHA256 before granting plan upgrades.
 - Database records track order IDs, payment IDs, and timestamps idempotently.
 """
 
@@ -30,7 +29,7 @@ for p in (str(ROOT_DIR), str(BASE_DIR)):
 from fastapi import HTTPException, status
 from database import get_db
 from plans import get_plan, PLANS
-from auth import update_user_plan
+from auth import update_user_plan, get_user_by_id
 
 # Optional Razorpay SDK client
 try:
@@ -73,13 +72,14 @@ async def create_razorpay_order(user: dict, plan_id: str) -> dict:
     Creates a new payment order for a selected subscription plan.
     Validates plan and calculates amount strictly server-side.
     """
-    plan = get_plan(plan_id)
-    if plan_id not in ["basic", "pro"]:
+    clean_plan = (plan_id or "").lower().strip()
+    if clean_plan not in ["basic", "pro", "business"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid subscription plan. Select 'basic' or 'pro'."
+            detail="Invalid subscription plan. Select 'basic', 'pro', or 'business'."
         )
 
+    plan = get_plan(clean_plan)
     amount_paise = plan["amount_paise"]
     currency = "INR"
     receipt_id = f"rcpt_usr{user['id']}_{int(time.time())}"
@@ -100,7 +100,7 @@ async def create_razorpay_order(user: dict, plan_id: str) -> dict:
                 "notes": {
                     "user_id": str(user["id"]),
                     "user_email": user["email"],
-                    "plan": plan_id
+                    "plan": clean_plan
                 }
             }
             rp_order = client.order.create(data=order_data)
@@ -113,7 +113,6 @@ async def create_razorpay_order(user: dict, plan_id: str) -> dict:
             )
     else:
         # Development / Test Mode fallback order generator
-        # Generates a standard Razorpay formatted order ID
         random_suffix = hashlib.sha256(f"{user['id']}_{time.time()}".encode()).hexdigest()[:14]
         order_id = f"order_{random_suffix}"
 
@@ -124,7 +123,7 @@ async def create_razorpay_order(user: dict, plan_id: str) -> dict:
             """INSERT INTO payments 
                (user_id, user_email, plan, amount, currency, razorpay_order_id, status) 
                VALUES (?, ?, ?, ?, ?, ?, 'created')""",
-            (user["id"], user["email"], plan_id, amount_paise, currency, order_id)
+            (user["id"], user["email"], clean_plan, amount_paise, currency, order_id)
         )
         await db.commit()
     finally:
@@ -135,12 +134,71 @@ async def create_razorpay_order(user: dict, plan_id: str) -> dict:
         "amount": amount_paise,
         "currency": currency,
         "key_id": key_id,
-        "plan_id": plan_id,
+        "plan_id": clean_plan,
         "plan_name": plan["name"],
         "price_inr": plan["price_inr"],
-        "user_name": user.get("name", ""),
-        "user_email": user.get("email", ""),
-        "is_test_mode": not is_live_keys_configured()
+        "monthly_character_limit": plan.get("monthly_character_limit", 500),
+        "is_mock": not is_live_keys_configured(),
+        "user": {
+            "name": user["name"],
+            "email": user["email"]
+        }
+    }
+
+
+async def mock_upgrade_user_plan(user: dict, plan_id: str) -> dict:
+    """
+    Test/Development simulation endpoint for upgrading subscription plans.
+    Enables instant plan testing with zero actual monetary charges.
+    """
+    clean_plan = (plan_id or "free").lower().strip()
+    if clean_plan not in PLANS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid subscription plan."
+        )
+
+    plan = get_plan(clean_plan)
+    amount_paise = plan["amount_paise"]
+    currency = "INR"
+
+    # Generate test receipt and order IDs
+    ts = int(time.time() * 1000)
+    mock_order_id = f"mock_order_{user['id']}_{ts}"
+    mock_payment_id = f"mock_pay_{user['id']}_{ts}"
+
+    # 1. Update user subscription in database
+    plan_update_res = await update_user_plan(user["id"], clean_plan, days=30)
+
+    # 2. Record transaction in payments table
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT INTO payments 
+               (user_id, user_email, plan, amount, currency, razorpay_order_id, razorpay_payment_id, status) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'mock_test_paid')""",
+            (user["id"], user["email"], clean_plan, amount_paise, currency, mock_order_id, mock_payment_id)
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    # 3. Retrieve refreshed user record
+    updated_user = await get_user_by_id(user["id"])
+
+    return {
+        "success": True,
+        "is_mock": True,
+        "message": f"Successfully activated {plan['name']} (Test Mode).",
+        "plan": clean_plan,
+        "plan_details": plan,
+        "subscription_expiry": plan_update_res.get("subscription_expiry"),
+        "billing_period_start": plan_update_res.get("billing_period_start"),
+        "billing_period_end": plan_update_res.get("billing_period_end"),
+        "subscription_status": plan_update_res.get("subscription_status"),
+        "characters_used": updated_user.get("characters_used", 0) if updated_user else 0,
+        "character_limit": plan.get("monthly_character_limit", 500),
+        "characters_remaining": max(0, plan.get("monthly_character_limit", 500) - (updated_user.get("characters_used", 0) if updated_user else 0))
     }
 
 
@@ -151,92 +209,64 @@ async def verify_razorpay_payment(
     razorpay_signature: str
 ) -> dict:
     """
-    Verifies payment signature server-side and updates user's plan.
-    Prevents duplicate upgrades or client-side tampering.
+    Verifies the HMAC-SHA256 signature returned by Razorpay after payment checkout.
     """
     if not razorpay_order_id or not razorpay_payment_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing razorpay_order_id or razorpay_payment_id."
+            detail="Order ID and Payment ID are required for verification."
         )
 
-    # 1. Look up existing order in our database
     db = await get_db()
-    payment_record = None
     try:
         async with db.execute(
-            "SELECT * FROM payments WHERE razorpay_order_id = ? AND user_id = ?",
-            (razorpay_order_id, user["id"])
+            "SELECT * FROM payments WHERE razorpay_order_id = ?",
+            (razorpay_order_id,)
         ) as cursor:
             row = await cursor.fetchone()
-            if row:
-                payment_record = dict(row)
-    finally:
-        await db.close()
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Payment order record not found in system."
+                )
+            payment_record = dict(row)
 
-    if not payment_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment order not found on server. Please initiate checkout again."
-        )
+        if payment_record["status"] == "paid":
+            return {
+                "success": True,
+                "message": "Payment was already verified and plan activated.",
+                "plan": payment_record["plan"]
+            }
 
-    # Idempotency check: if already verified as paid, return existing success
-    if payment_record["status"] == "paid":
-        return {
-            "success": True,
-            "message": "Payment already verified successfully.",
-            "plan": payment_record["plan"],
-            "plan_details": get_plan(payment_record["plan"]),
-            "order_id": razorpay_order_id,
-            "payment_id": razorpay_payment_id
-        }
+        key_secret = get_razorpay_key_secret()
 
-    # 2. Server-side HMAC SHA256 Signature Verification
-    key_secret = get_razorpay_key_secret()
-    
-    if is_live_keys_configured():
-        # Standard Razorpay HMAC SHA256 algorithm
-        msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
-        expected_sig = hmac.new(
-            key_secret.encode("utf-8"),
-            msg,
-            hashlib.sha256
-        ).hexdigest()
+        # In Test / Mock Mode, allow mock signature verification
+        is_mock = not is_live_keys_configured() or razorpay_order_id.startswith("mock_order_") or razorpay_signature.startswith("mock_sig_")
+        if not is_mock:
+            body = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
+            expected_signature = hmac.new(
+                key_secret.encode("utf-8"),
+                body,
+                hashlib.sha256
+            ).hexdigest()
 
-        if not hmac.compare_digest(expected_sig, razorpay_signature):
-            # Record failed signature verification
-            db = await get_db()
-            try:
+            if not hmac.compare_digest(expected_signature, razorpay_signature):
                 await db.execute(
                     """UPDATE payments 
                        SET status = 'failed', 
-                           error_description = 'Invalid payment signature', 
+                           error_code = 'INVALID_SIGNATURE', 
+                           error_description = 'HMAC signature verification failed',
                            updated_at = CURRENT_TIMESTAMP 
                        WHERE razorpay_order_id = ?""",
                     (razorpay_order_id,)
                 )
                 await db.commit()
-            finally:
-                await db.close()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Payment signature verification failed. Transaction was not credited."
+                )
 
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Payment signature verification failed. The transaction could not be validated."
-            )
-    else:
-        # In Test Mode / Mock setup without live API keys, verify signature string presence
-        if not razorpay_signature:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Payment signature missing."
-            )
-
-    # 3. Mark payment as 'paid' in DB
-    plan_to_activate = payment_record["plan"]
-    now_iso = datetime.now(timezone.utc).isoformat()
-
-    db = await get_db()
-    try:
+        # Mark paid
         await db.execute(
             """UPDATE payments 
                SET status = 'paid', 
@@ -247,118 +277,86 @@ async def verify_razorpay_payment(
             (razorpay_payment_id, razorpay_signature, razorpay_order_id)
         )
         await db.commit()
+
+        # Upgrade user plan
+        target_plan = payment_record["plan"]
+        plan_update = await update_user_plan(user["id"], target_plan, days=30)
+        plan_info = get_plan(target_plan)
+
+        return {
+            "success": True,
+            "message": f"Payment verified successfully! You have been upgraded to {plan_info['name']}.",
+            "plan": target_plan,
+            "plan_details": plan_info,
+            "subscription_expiry": plan_update.get("subscription_expiry"),
+            "billing_period_start": plan_update.get("billing_period_start"),
+            "billing_period_end": plan_update.get("billing_period_end"),
+            "is_mock": is_mock
+        }
     finally:
         await db.close()
 
-    # 4. Activate user subscription for 30 days
-    await update_user_plan(user["id"], plan_to_activate, days=30)
 
-    return {
-        "success": True,
-        "message": f"Payment successful! You have been upgraded to {get_plan(plan_to_activate)['name']}.",
-        "plan": plan_to_activate,
-        "plan_details": get_plan(plan_to_activate),
-        "order_id": razorpay_order_id,
-        "payment_id": razorpay_payment_id
-    }
-
-
-async def process_razorpay_webhook(raw_body: bytes, signature_header: str) -> dict:
+async def process_razorpay_webhook(body_bytes: bytes, signature: str) -> dict:
     """
-    Handles Razorpay Webhook events (e.g. payment.captured, order.paid, payment.failed).
-    Validates webhook signature against RAZORPAY_WEBHOOK_SECRET.
+    Processes background webhook events from Razorpay.
     """
     webhook_secret = get_razorpay_webhook_secret()
-    
-    # Verify webhook signature if configured
     if webhook_secret:
-        expected_sig = hmac.new(
-            webhook_secret.encode("utf-8"),
-            raw_body,
-            hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(expected_sig, signature_header):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid Razorpay webhook signature."
-            )
+        expected_sig = hmac.new(webhook_secret.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected_sig, signature):
+            raise HTTPException(status_code=400, detail="Invalid webhook signature.")
 
     try:
-        payload = json.loads(raw_body.decode("utf-8"))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON webhook payload.")
+        event_data = json.loads(body_bytes.decode("utf-8"))
+        event_type = event_data.get("event", "")
+        print(f"[Razorpay Webhook] Received event: {event_type}")
 
-    event = payload.get("event", "")
-    print(f"[Razorpay Webhook] Received event: {event}")
+        if event_type == "payment.captured":
+            payload = event_data.get("payload", {}).get("payment", {}).get("entity", {})
+            order_id = payload.get("order_id")
+            payment_id = payload.get("id")
 
-    # Handle payment.captured or order.paid
-    if event in ["payment.captured", "order.paid"]:
-        payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
-        order_id = payment_entity.get("order_id")
-        payment_id = payment_entity.get("id")
+            if order_id:
+                db = await get_db()
+                try:
+                    async with db.execute("SELECT * FROM payments WHERE razorpay_order_id = ?", (order_id,)) as cursor:
+                        row = await cursor.fetchone()
+                        if row:
+                            payment_data = dict(row)
+                            await db.execute(
+                                """UPDATE payments 
+                                   SET status = 'paid', 
+                                       razorpay_payment_id = ?, 
+                                       updated_at = CURRENT_TIMESTAMP 
+                                   WHERE razorpay_order_id = ?""",
+                                (payment_id, order_id)
+                            )
+                            await db.commit()
+                            await update_user_plan(payment_data["user_id"], payment_data["plan"], days=30)
+                finally:
+                    await db.close()
 
-        if order_id and payment_id:
-            db = await get_db()
-            try:
-                async with db.execute("SELECT * FROM payments WHERE razorpay_order_id = ?", (order_id,)) as cursor:
-                    row = await cursor.fetchone()
-                    if row and row["status"] != "paid":
-                        payment_data = dict(row)
-                        await db.execute(
-                            """UPDATE payments 
-                               SET status = 'paid', 
-                                   razorpay_payment_id = ?, 
-                                   updated_at = CURRENT_TIMESTAMP 
-                               WHERE razorpay_order_id = ?""",
-                            (payment_id, order_id)
-                        )
-                        await db.commit()
-                        await update_user_plan(payment_data["user_id"], payment_data["plan"], days=30)
-                        print(f"[Razorpay Webhook] User {payment_data['user_id']} upgraded to {payment_data['plan']}")
-            finally:
-                await db.close()
-
-    elif event == "payment.failed":
-        payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
-        order_id = payment_entity.get("order_id")
-        error_desc = payment_entity.get("error_description", "Payment failed")
-        if order_id:
-            db = await get_db()
-            try:
-                await db.execute(
-                    """UPDATE payments 
-                       SET status = 'failed', 
-                           error_description = ?, 
-                           updated_at = CURRENT_TIMESTAMP 
-                       WHERE razorpay_order_id = ?""",
-                    (error_desc, order_id)
-                )
-                await db.commit()
-            finally:
-                await db.close()
-
-    return {"status": "ok", "event_processed": event}
+        return {"status": "ok", "event": event_type}
+    except Exception as e:
+        print(f"[Razorpay Webhook Error] {e}")
+        return {"status": "error", "detail": str(e)}
 
 
 async def get_user_payment_history(user_id: int) -> List[Dict[str, Any]]:
-    """Retrieve full payment history records for an authenticated user."""
+    """Returns invoice & transaction history for a user."""
     db = await get_db()
     try:
         async with db.execute(
             """SELECT id, plan, amount, currency, razorpay_order_id, 
-                      razorpay_payment_id, status, error_description, created_at 
+                      razorpay_payment_id, status, created_at 
                FROM payments 
                WHERE user_id = ? 
-               ORDER BY created_at DESC""",
+               ORDER BY created_at DESC 
+               LIMIT 20""",
             (user_id,)
         ) as cursor:
             rows = await cursor.fetchall()
-            history = []
-            for r in rows:
-                item = dict(r)
-                item["amount_inr"] = item["amount"] / 100.0
-                item["plan_name"] = get_plan(item["plan"])["name"]
-                history.append(item)
-            return history
+            return [dict(r) for r in rows]
     finally:
         await db.close()

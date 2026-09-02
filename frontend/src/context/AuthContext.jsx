@@ -54,6 +54,33 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  /**
+   * updateUser — merge partial user data into the current user state.
+   * Used by VoiceStudio after a successful generation to update
+   * characters_used and characters_remaining without a full re-fetch.
+   */
+  const updateUser = useCallback((partialUser) => {
+    setUser(prev => prev ? { ...prev, ...partialUser } : prev);
+  }, []);
+
+  /**
+   * refreshUser — re-fetch full user data from /api/auth/me.
+   * Called when we want authoritative usage numbers from the backend.
+   */
+  const refreshUser = useCallback(async () => {
+    const stored = localStorage.getItem('aiv_token');
+    if (!stored) return;
+    try {
+      const userData = await fetchCurrentUser(stored);
+      setUser(userData);
+    } catch {
+      // Token expired — logout
+      localStorage.removeItem('aiv_token');
+      setToken(null);
+      setUser(null);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -63,6 +90,8 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateUser,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

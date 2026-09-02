@@ -3,21 +3,26 @@ import {
   Mic, Sparkles, Volume2, Settings2, Play, Square, RefreshCw,
   Trash2, Copy, Check, Sliders, Globe, Layers, AlertCircle, Info,
   Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, RotateCcw,
-  Search
+  Search, Zap
 } from 'lucide-react';
 import { INDIAN_LANGUAGES } from '../data/languages';
 import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
 import { generateSpeech, normalizeText } from '../services/api';
 import { useWebSpeechVoices } from '../hooks/useWebSpeechVoices';
+import { useAuth } from '../context/AuthContext';
 import AudioPlayer from './AudioPlayer';
+import UpgradeModal from './UpgradeModal';
 
 export default function VoiceStudio({
   voices = [],
   selectedLang,
   setSelectedLang,
   initialMode = null,
-  initialStyle = null
+  initialStyle = null,
+  onOpenUpgrade = null
 }) {
+  const { user, token, updateUser } = useAuth();
+
   // Hook for real device/browser Web Speech API voices
   const {
     allRawVoices,
@@ -43,6 +48,19 @@ export default function VoiceStudio({
   const [generationResult, setGenerationResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Plan & character allowance calculations
+  const rawPlan = (user?.plan || 'basic').toLowerCase();
+  const planId = rawPlan === 'free' ? 'basic' : rawPlan;
+  const isBasicPlan = planId === 'basic';
+  const isFreePlan = isBasicPlan;
+  const charactersUsed = user?.characters_used ?? 0;
+  const characterLimit = user?.character_limit ?? (planId === 'business' ? 5000 : planId === 'pro' ? 1000 : 200);
+  const charactersRemaining = user?.characters_remaining ?? Math.max(0, characterLimit - charactersUsed);
+  const charCount = text.length;
+  const isOverLimit = charCount > charactersRemaining;
+  const isZeroRemaining = charactersRemaining <= 0;
 
   // Current language object
   const currentLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLang) || INDIAN_LANGUAGES[0];
@@ -134,6 +152,19 @@ export default function VoiceStudio({
       return;
     }
 
+    // Client-side guard for FREE users exceeding remaining allowance
+    if (isZeroRemaining) {
+      setShowUpgradeModal(true);
+      setErrorMessage(`Your ${characterLimit} free characters have been used. Please upgrade to continue.`);
+      return;
+    }
+
+    if (isOverLimit) {
+      setShowUpgradeModal(true);
+      setErrorMessage(`You have only ${charactersRemaining} free characters remaining. Your text has ${charCount} characters.`);
+      return;
+    }
+
     setIsGenerating(true);
     setErrorMessage('');
 
@@ -145,16 +176,22 @@ export default function VoiceStudio({
         speed,
         pitch,
         style,
-        normalizeText: enableNormalization
+        normalizeText: enableNormalization,
+        token
       });
 
       setGenerationResult(result);
+
+      // Refresh remaining character count upon successful generation
+      if (result && result.usage) {
+        updateUser(result.usage);
+      }
     } catch (err) {
-      console.warn('Backend generation fallback to live browser Web Speech synthesis:', err);
-      if (activeVoiceMeta && isWebSpeechSupported) {
-        handlePreview(activeVoiceMeta);
-        setErrorMessage('');
+      if (err.code === 'FREE_LIMIT_REACHED' || err.code === 'CHARACTER_LIMIT_EXCEEDED') {
+        setShowUpgradeModal(true);
+        setErrorMessage(err.message || 'Character limit reached.');
       } else {
+        console.warn('Backend generation error:', err);
         setErrorMessage(err.message || 'Something went wrong while generating the audio. Please try again.');
       }
     } finally {
@@ -174,12 +211,23 @@ export default function VoiceStudio({
     stopVoice();
   };
 
-  const charCount = text.length;
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const estSeconds = Math.max(1, Math.round((wordCount / 2.5) / speed));
 
   return (
     <div className="container" style={{ paddingBottom: '60px' }}>
+
+      {/* Upgrade Modal shown when limit is reached */}
+      {showUpgradeModal && (
+        <UpgradeModal
+          onClose={() => setShowUpgradeModal(false)}
+          onUpgrade={() => {
+            setShowUpgradeModal(false);
+            if (onOpenUpgrade) onOpenUpgrade();
+          }}
+          remainingChars={charactersRemaining}
+        />
+      )}
 
       {/* CREATOR MODES BAR */}
       <div className="creator-mode-bar" style={{ marginBottom: '20px', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -196,7 +244,7 @@ export default function VoiceStudio({
               </button>
             );
           })}
-          <div style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'rgba(255,255,255,0.3)', fontWeight: 500, whiteSpace: 'nowrap', paddingRight: '4px' }}>
+          <div style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap', paddingRight: '8px' }}>
             {currentModeObj.tag}
           </div>
         </div>
@@ -210,7 +258,7 @@ export default function VoiceStudio({
           <div className="studio-lang-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Globe size={18} color="#FF9933" />
-              <h2 style={{ fontSize: '1.02rem', fontWeight: 700, letterSpacing: '0.02em' }}>
+              <h2 style={{ fontSize: '1.02rem', fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
                 Languages
               </h2>
             </div>
@@ -280,6 +328,60 @@ export default function VoiceStudio({
 
           {/* 1. Text Input Card */}
           <div className="glass-card" style={{ padding: '20px' }}>
+
+            {/* Plan Character Allowance Indicator Banner */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              background: isZeroRemaining ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)',
+              border: `1px solid ${isZeroRemaining ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-subtle)'}`,
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '14px',
+              fontSize: '0.82rem',
+              flexWrap: 'wrap',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontSize: '0.66rem',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: isZeroRemaining
+                    ? '#ef4444'
+                    : planId === 'business' ? '#00C4F0' : planId === 'pro' ? '#A855F7' : '#FF8A00',
+                  color: '#FFFFFF',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase'
+                }}>
+                  {planId === 'business' ? 'BUSINESS PLAN' : planId === 'pro' ? 'PRO PLAN' : 'BASIC CREATOR'}
+                </span>
+                <span style={{ fontWeight: 600, color: isZeroRemaining ? '#ef4444' : 'var(--text-primary)' }}>
+                  {charactersRemaining.toLocaleString()} / {characterLimit.toLocaleString()} characters remaining this month
+                </span>
+              </div>
+              <button
+                onClick={() => onOpenUpgrade ? onOpenUpgrade() : setShowUpgradeModal(true)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: planId === 'business' ? '#00C4F0' : planId === 'pro' ? '#A855F7' : '#FF8A00',
+                  fontWeight: 700,
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <Zap size={12} />
+                {planId === 'business' ? 'Manage Plan' : 'Upgrade Plan'}
+              </button>
+            </div>
+
             <div className="text-card-header" style={{
               display: 'flex',
               alignItems: 'center',
@@ -287,8 +389,8 @@ export default function VoiceStudio({
               marginBottom: '12px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <Mic size={18} color="#00D2FF" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                <Mic size={18} color="var(--saffron-primary)" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   1. Enter Your Text ({currentLangObj.name})
                 </h2>
               </div>
@@ -325,20 +427,51 @@ export default function VoiceStudio({
                 rows={8}
                 style={{
                   width: '100%',
-                  backgroundColor: 'rgba(7, 9, 14, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: 'var(--radius-md)',
-                  color: '#F8FAFC',
                   padding: '16px',
                   fontSize: '1.05rem',
                   lineHeight: '1.6',
                   fontFamily: 'inherit',
                   resize: 'vertical',
-                  outline: 'none',
                   boxSizing: 'border-box'
                 }}
               />
             </div>
+
+            {/* Over-limit inline alert */}
+            {isOverLimit && (
+              <div style={{
+                marginTop: '10px',
+                padding: '8px 12px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.8rem',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '6px'
+              }}>
+                <span>Your text has {charCount} chars, which exceeds your remaining {charactersRemaining} free chars.</span>
+                <button
+                  onClick={() => onOpenUpgrade ? onOpenUpgrade() : setShowUpgradeModal(true)}
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            )}
 
             {/* Mode Tip Banner */}
             <div style={{
@@ -348,7 +481,7 @@ export default function VoiceStudio({
               border: '1px solid rgba(0, 210, 255, 0.15)',
               borderRadius: 'var(--radius-sm)',
               fontSize: '0.78rem',
-              color: '#63E6FF',
+              color: '#00D2FF',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
@@ -372,9 +505,7 @@ export default function VoiceStudio({
                       style={{
                         padding: '5px 12px',
                         fontSize: '0.78rem',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        color: 'var(--text-secondary)'
+                        borderRadius: 'var(--radius-sm)'
                       }}
                     >
                       {idx === 0 ? '👋 Welcome Greeting' : idx === 1 ? '🎥 Video Script' : idx === 2 ? '🎧 Support' : '📖 Story'}
@@ -391,15 +522,17 @@ export default function VoiceStudio({
               justifyContent: 'space-between',
               marginTop: '14px',
               paddingTop: '12px',
-              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              borderTop: '1px solid var(--border-subtle)',
               fontSize: '0.8rem',
               color: 'var(--text-muted)'
             }}>
               <div>
-                <span>{charCount} / 5,000 characters</span> • <span>{wordCount} words</span>
+                <span style={{ color: isOverLimit ? '#ef4444' : 'inherit', fontWeight: isOverLimit ? 700 : 'normal' }}>
+                  {charCount} {isFreePlan ? `/ ${charactersRemaining} remaining free chars` : 'characters'}
+                </span> • <span>{wordCount} words</span>
               </div>
               <div>
-                <span>{estSeconds}s</span>
+                <span>~{estSeconds}s</span>
               </div>
             </div>
           </div>
@@ -409,16 +542,37 @@ export default function VoiceStudio({
             <div style={{
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#FCA5A5',
+              color: '#ef4444',
               padding: '14px 18px',
               borderRadius: 'var(--radius-md)',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '10px',
               fontSize: '0.9rem'
             }}>
-              <AlertCircle size={18} color="#EF4444" />
-              <span>{errorMessage}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0 }} />
+                <span>{errorMessage}</span>
+              </div>
+              {isZeroRemaining && (
+                <button
+                  onClick={() => onOpenUpgrade ? onOpenUpgrade() : setShowUpgradeModal(true)}
+                  style={{
+                    background: '#FF8A00',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  Upgrade Now
+                </button>
+              )}
             </div>
           )}
 
@@ -439,7 +593,7 @@ export default function VoiceStudio({
         {/* 3. RIGHT COLUMN: Select Voice & Natural Voice Settings */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0, width: '100%' }}>
 
-          {/* 2. Select Voice Card (Contains ONLY Voice Cards, Active Voice, Preview, Refresh) */}
+          {/* 2. Select Voice Card */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
@@ -451,7 +605,7 @@ export default function VoiceStudio({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Volume2 size={18} color="#00D084" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   2. Select Voice ({combinedVoiceList.length})
                 </h2>
               </div>
@@ -476,7 +630,7 @@ export default function VoiceStudio({
             {/* Currently Active Selected Voice Display */}
             {activeVoiceMeta && (
               <div style={{
-                background: 'linear-gradient(90deg, rgba(255, 138, 0, 0.1) 0%, rgba(13, 18, 31, 0.8) 100%)',
+                background: 'linear-gradient(90deg, rgba(255, 138, 0, 0.1) 0%, var(--bg-card) 100%)',
                 border: '1px solid rgba(255, 138, 0, 0.35)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '12px 14px',
@@ -488,10 +642,10 @@ export default function VoiceStudio({
                 gap: '8px'
               }}>
                 <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-                  <div style={{ fontSize: '0.68rem', color: '#FFA333', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--saffron-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
                     Active Selected Voice
                   </div>
-                  <div style={{ fontWeight: 700, color: '#F8FAFC', fontSize: '0.96rem' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.96rem' }}>
                     {activeVoiceMeta.name}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
@@ -508,7 +662,7 @@ export default function VoiceStudio({
                       fontSize: '0.78rem',
                       background: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.2)',
                       borderColor: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.4)',
-                      color: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? '#FCA5A5' : '#FFA333'
+                      color: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? '#ef4444' : '#FF8A00'
                     }}
                   >
                     {isSpeaking && previewingVoiceId === activeVoiceMeta.id ? (
@@ -557,11 +711,11 @@ export default function VoiceStudio({
                       style={{
                         padding: '12px 14px',
                         background: isSelected
-                          ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.15) 0%, rgba(13, 18, 31, 0.9) 100%)'
-                          : 'rgba(255, 255, 255, 0.02)',
+                          ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.12) 0%, var(--bg-card) 100%)'
+                          : 'var(--bg-card)',
                         border: isSelected
                           ? '1px solid rgba(255, 138, 0, 0.5)'
-                          : '1px solid rgba(255, 255, 255, 0.06)',
+                          : '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-md)',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease'
@@ -576,7 +730,7 @@ export default function VoiceStudio({
                         gap: '6px'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, color: isSelected ? '#FFA333' : '#F8FAFC', fontSize: '0.9rem' }}>
+                          <span style={{ fontWeight: 600, color: isSelected ? '#FF8A00' : 'var(--text-primary)', fontSize: '0.9rem' }}>
                             {voice.name}
                           </span>
 
@@ -599,19 +753,29 @@ export default function VoiceStudio({
                         {/* Preview / Stop Button */}
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button
+                            type="button"
                             onClick={(e) => handlePreview(voice, e)}
                             className="btn-secondary"
                             style={{
                               padding: '4px 8px',
                               fontSize: '0.72rem',
-                              background: isThisSpeaking ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                              borderColor: isThisSpeaking ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.1)',
-                              color: isThisSpeaking ? '#FCA5A5' : 'var(--text-secondary)'
+                              background: isThisSpeaking ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.15)',
+                              borderColor: isThisSpeaking ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.3)',
+                              color: isThisSpeaking ? '#ef4444' : '#FF8A00'
                             }}
-                            title={isThisSpeaking ? "Stop speech" : "Preview this voice"}
+                            title="Play audio preview"
                           >
-                            {isThisSpeaking ? <Square size={12} fill="#EF4444" /> : <Play size={12} />}
-                            <span>{isThisSpeaking ? 'Stop' : 'Preview'}</span>
+                            {isThisSpeaking ? (
+                              <>
+                                <Square size={11} fill="#EF4444" />
+                                <span>Stop</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play size={11} fill="#FFA333" />
+                                <span>Preview</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -620,12 +784,12 @@ export default function VoiceStudio({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        fontSize: '0.76rem',
-                        color: 'var(--text-secondary)'
+                        fontSize: '0.74rem',
+                        color: 'var(--text-muted)'
                       }}>
-                        <span>Style: <strong style={{ color: '#E2E8F0' }}>{voice.style || 'Natural'}</strong></span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {voice.region || 'India'}
+                        <span>{voice.style || 'Natural'} • {voice.region || 'India'}</span>
+                        <span style={{ fontSize: '0.7rem', color: voice.isNativeDeviceVoice ? '#00D084' : 'var(--text-muted)' }}>
+                          {voice.isNativeDeviceVoice ? '⚡ Native' : 'Cloud'}
                         </span>
                       </div>
                     </div>
@@ -635,28 +799,16 @@ export default function VoiceStudio({
                 <div style={{
                   padding: '24px 16px',
                   textAlign: 'center',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px dashed rgba(255, 255, 255, 0.1)',
-                  borderRadius: 'var(--radius-md)'
+                  color: 'var(--text-muted)',
+                  fontSize: '0.85rem'
                 }}>
-                  <Info size={24} color="#FFA333" style={{ margin: '0 auto 8px auto' }} />
-                  <p style={{ color: '#CBD5E1', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                    No natural voice for this language is currently available on this device. You can still continue using another available voice.
-                  </p>
-                  <button
-                    onClick={refreshVoices}
-                    className="btn-secondary"
-                    style={{ marginTop: '12px', fontSize: '0.78rem' }}
-                  >
-                    <RefreshCw size={14} />
-                    <span>Check for Voices</span>
-                  </button>
+                  No voices loaded for {currentLangObj.name}. Click refresh to detect voices.
                 </div>
               )}
             </div>
           </div>
 
-          {/* 3. Natural Voice Settings */}
+          {/* 3. Natural Speech Controls (Pitch, Speed, Emotion, Normalization) */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
@@ -665,51 +817,38 @@ export default function VoiceStudio({
               marginBottom: '16px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Settings2 size={18} color="#FF9933" />
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700 }}>3. Voice Settings</h2>
+                <Settings2 size={18} color="#FFA333" />
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  3. Speech Controls
+                </h2>
               </div>
-
-              {/* Reset Settings Button */}
               <button
                 onClick={handleResetSettings}
                 className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                title="Reset speed, pitch, and style to default"
+                style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                title="Reset to default pitch, speed and style"
               >
-                <RotateCcw size={13} />
+                <RotateCcw size={12} />
                 <span>Reset</span>
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Speaking Style */}
+
+              {/* Style / Emotion Selector */}
               <div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '6px'
-                }}>
-                  <span>Speaking Style</span>
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{style}</span>
-                </div>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 500 }}>
+                  Speaking Style &amp; Emotion
+                </label>
                 <select
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'rgba(7, 9, 14, 0.8)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: '#F8FAFC',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
+                  style={{ width: '100%', fontSize: '0.88rem' }}
                 >
-                  {VOICE_STYLES.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} — {s.desc}</option>
+                  {VOICE_STYLES.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.name} ({st.description})
+                    </option>
                   ))}
                 </select>
               </div>
@@ -723,8 +862,8 @@ export default function VoiceStudio({
                   color: 'var(--text-secondary)',
                   marginBottom: '6px'
                 }}>
-                  <span>Speaking Speed</span>
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{speed}x</span>
+                  <span>Speech Speed</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{speed.toFixed(2)}x</span>
                 </div>
                 <input
                   type="range"
@@ -757,7 +896,7 @@ export default function VoiceStudio({
                   marginBottom: '6px'
                 }}>
                   <span>Voice Pitch</span>
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                     {pitch > 0 ? `+${pitch}` : pitch}
                   </span>
                 </div>
@@ -789,15 +928,15 @@ export default function VoiceStudio({
                 justifyContent: 'space-between',
                 padding: '10px 14px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.05)'
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-subtle)'
               }}>
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#F8FAFC' }}>
-
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Indian Text Normalization
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Auto format ₹, Lakhs, Crores, dates & abbreviations
+                    Auto format ₹, Lakhs, Crores, dates &amp; abbreviations
                   </div>
                 </div>
                 <input
@@ -822,6 +961,11 @@ export default function VoiceStudio({
               <>
                 <RefreshCw size={18} className="spin-animation" />
                 <span>Synthesizing Voice...</span>
+              </>
+            ) : isZeroRemaining ? (
+              <>
+                <Zap size={18} />
+                <span>Upgrade to Generate Voices</span>
               </>
             ) : (
               <>

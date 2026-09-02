@@ -105,6 +105,15 @@ export async function normalizeText(text, language = 'en') {
   }
 }
 
+/**
+ * generateSpeech — sends text to backend for TTS generation.
+ * Requires a valid JWT token (enforced server-side).
+ * Returns result with audio_url and usage data.
+ *
+ * Character limit errors are surfaced with special error codes:
+ *   err.code === 'FREE_LIMIT_REACHED'    → user has 0 chars left
+ *   err.code === 'CHARACTER_LIMIT_EXCEEDED' → request too large for remaining
+ */
 export async function generateSpeech({
   text,
   language,
@@ -112,12 +121,18 @@ export async function generateSpeech({
   speed = 1.0,
   pitch = 0.0,
   style = null,
-  normalizeText = true
+  normalizeText = true,
+  token = null
 }) {
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${API_BASE}/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         text,
         language,
@@ -131,7 +146,31 @@ export async function generateSpeech({
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || 'Something went wrong while generating the audio. Please try again.');
+      const detail = errorData.detail;
+
+      // Handle structured character limit errors from backend
+      if (detail && typeof detail === 'object') {
+        const err = new Error(detail.message || 'Generation limit reached.');
+        err.code = detail.error;
+        err.remainingCharacters = detail.remaining_characters;
+        err.charactersUsed = detail.characters_used;
+        err.characterLimit = detail.character_limit;
+        err.status = res.status;
+        throw err;
+      }
+
+      // Handle plain string errors (e.g. 401 Unauthorized)
+      if (res.status === 401) {
+        const err = new Error('Please log in to generate audio.');
+        err.code = 'UNAUTHORIZED';
+        err.status = 401;
+        throw err;
+      }
+
+      throw new Error(
+        (typeof detail === 'string' ? detail : null) ||
+        'Something went wrong while generating the audio. Please try again.'
+      );
     }
 
     const data = await res.json();
@@ -140,7 +179,7 @@ export async function generateSpeech({
     }
     return data;
   } catch (err) {
-    // If backend connection fails, provide clear friendly message
+    // Network failure (backend offline)
     if (err.message && err.message.includes('Failed to fetch')) {
       throw new Error('Voice service is currently offline. Please start the backend and try again.');
     }
@@ -167,28 +206,35 @@ async function safeJson(res) {
  * Extract a human-readable error message from a FastAPI error response body.
  */
 function extractDetail(data, status, fallback) {
-  if (status >= 500 && !data) {
-    return 'Unable to reach the backend server. Please verify the backend is running.';
-  }
-  if (status >= 500 && data) {
-    const detail = data.detail;
-    if (typeof detail === 'string' && detail.trim()) return detail;
-    return `Backend server error (HTTP ${status}). Please check backend logs.`;
-  }
-  if (status === 404) {
-    return 'API endpoint not found (HTTP 404). Please verify backend deployment.';
-  }
   if (status === 401) {
     if (data && typeof data.detail === 'string' && data.detail.trim()) {
       return data.detail;
     }
-    return 'Incorrect email or password. If you have not registered an account yet, please sign up.';
+    return 'Incorrect email or password.';
   }
   if (status === 409) {
     if (data && typeof data.detail === 'string' && data.detail.trim()) {
       return data.detail;
     }
     return 'An account with this email already exists.';
+  }
+  if (status === 422) {
+    if (data && Array.isArray(data.detail)) {
+      return data.detail.map(d => d.msg || (typeof d === 'object' ? JSON.stringify(d) : String(d))).join(', ');
+    }
+    if (data && typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+    return 'Invalid input data provided. Please check the fields and try again.';
+  }
+  if (status >= 500) {
+    if (data && typeof data.detail === 'string' && data.detail.trim()) {
+      return data.detail;
+    }
+    return 'Unable to reach the backend server. Please verify the backend is running.';
+  }
+  if (status === 404) {
+    return 'API endpoint not found (HTTP 404). Please verify backend is running.';
   }
   if (!data) {
     return fallback;
@@ -212,11 +258,11 @@ export async function registerUser({ name, email, password }) {
     });
   } catch (networkErr) {
     console.error('[Auth API] Network / connection error during registration:', networkErr);
-    throw new Error('Unable to connect to the authentication server. Please check your internet connection and backend status.');
+    throw new Error('Unable to reach the backend server. Please verify the backend is running.');
   }
   const data = await safeJson(res);
   if (!res.ok) {
-    throw new Error(extractDetail(data, res.status, 'Registration failed.'));
+    throw new Error(extractDetail(data, res.status, 'Registration failed. Please check your information.'));
   }
   return data;
 }
@@ -232,11 +278,11 @@ export async function loginUser({ email, password }) {
     });
   } catch (networkErr) {
     console.error('[Auth API] Network / connection error during login:', networkErr);
-    throw new Error('Unable to connect to the authentication server. Please check your internet connection and backend status.');
+    throw new Error('Unable to reach the backend server. Please verify the backend is running.');
   }
   const data = await safeJson(res);
   if (!res.ok) {
-    throw new Error(extractDetail(data, res.status, 'Login failed. Please check your credentials.'));
+    throw new Error(extractDetail(data, res.status, 'Incorrect email or password.'));
   }
   return data;
 }
@@ -330,4 +376,30 @@ export async function fetchPaymentHistory(token) {
   } catch (err) {
     return { history: [], total: 0 };
   }
+}
+
+/**
+ * mockUpgradePlan — instantly activates a plan for testing (dev/test mode only).
+ * Hits POST /api/payments/mock-upgrade on the backend.
+ * Returns updated plan details and subscription info.
+ */
+export async function mockUpgradePlan(planId, token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/payments/mock-upgrade`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ plan: planId })
+    });
+  } catch (networkErr) {
+    throw new Error('Cannot reach the server. Please make sure the backend is running.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Plan upgrade failed.'));
+  }
+  return data;
 }

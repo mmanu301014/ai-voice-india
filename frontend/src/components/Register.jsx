@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { Mic, User, Mail, Lock, Eye, EyeOff, AlertCircle, Loader, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export default function Register({ onSwitchToLogin }) {
+export default function Register({ onSwitchToLogin, onSuccess }) {
   const { register } = useAuth();
 
   const [name, setName] = useState('');
@@ -38,6 +38,9 @@ export default function Register({ onSwitchToLogin }) {
     setLoading(true);
     try {
       await register(cleanName, cleanEmail, password);
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+      }
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
     } finally {

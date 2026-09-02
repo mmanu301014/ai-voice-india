@@ -9,13 +9,16 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Outfit', var(--font-sans);
 
-  /* Core Black/White Palette */
+  /* Core Black/White Palette (Dark Theme Default) */
   --bg-primary: #000000;
   --bg-secondary: #0a0a0a;
   --bg-card: rgba(8, 8, 8, 0.96);
   --bg-card-hover: rgba(14, 14, 14, 0.98);
   --bg-panel: #0c0c0c;
   --bg-input: rgba(4, 4, 4, 0.95);
+  --navbar-bg: rgba(0, 0, 0, 0.88);
+  --footer-bg: rgba(0, 0, 0, 0.94);
+  --banner-bg: rgba(0, 0, 0, 0.9);
 
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.09);
@@ -34,7 +37,7 @@
   /* Typography */
   --text-primary: #FFFFFF;
   --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-muted: rgba(255, 255, 255, 0.4);
+  --text-muted: rgba(255, 255, 255, 0.45);
   --text-placeholder: rgba(255, 255, 255, 0.3);
 
   /* Radii */
@@ -48,6 +51,37 @@
   /* Shadows */
   --shadow-card: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.8);
   --shadow-panel: 0 0 0 1px rgba(255,255,255,0.08), 0 8px 40px rgba(0,0,0,0.9);
+}
+
+/* ============================================================
+   LIGHT THEME VARIABLES
+   ============================================================ */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-panel: #ffffff;
+  --bg-input: #ffffff;
+  --navbar-bg: rgba(255, 255, 255, 0.92);
+  --footer-bg: #ffffff;
+  --banner-bg: #f8fafc;
+
+  /* Borders */
+  --border-subtle: #e2e8f0;
+  --border-medium: #cbd5e1;
+  --border-active: #94a3b8;
+  --border-focus: #64748b;
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-placeholder: #94a3b8;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 18px rgba(0, 0, 0, 0.06);
+  --shadow-panel: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
 /* ============================================================
@@ -89,6 +123,16 @@ body::before {
   background: rgba(0, 0, 0, 0.72);
   z-index: 0;
   pointer-events: none;
+  transition: background 0.3s ease;
+}
+
+[data-theme="light"] body {
+  background-image: none;
+  background-color: var(--bg-primary);
+}
+
+[data-theme="light"] body::before {
+  background: transparent;
 }
 
 #root {
@@ -370,11 +414,11 @@ input[type=range]::-webkit-slider-thumb:hover {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.88);
+  background: var(--navbar-bg);
   border-bottom: 1px solid var(--border-subtle);
-  /* Subtle blur so mountain peeks through lightly */
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .navbar-container {
@@ -431,15 +475,15 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 .navbar-nav button:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(125, 125, 125, 0.08);
   color: var(--text-primary);
   border-color: var(--border-subtle);
 }
 
 .navbar-nav button.nav-active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(125, 125, 125, 0.12);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--border-medium);
   font-weight: 600;
 }
 
@@ -457,9 +501,8 @@ input[type=range]::-webkit-slider-thumb:hover {
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  color: #FFFFFF;
+  color: var(--text-primary);
   margin-bottom: 20px;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.5);
 }
 
 .hero-badge-row {
@@ -477,11 +520,11 @@ input[type=range]::-webkit-slider-thumb:hover {
   gap: 6px;
   padding: 7px 16px;
   border-radius: var(--radius-full);
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
   font-size: 0.82rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-secondary);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -490,7 +533,7 @@ input[type=range]::-webkit-slider-thumb:hover {
    CREATOR MODE / CATEGORY BAR
    ============================================================ */
 .creator-mode-bar {
-  background: rgba(0, 0, 0, 0.9);
+  background: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   border-bottom: 1px solid var(--border-subtle);
   padding: 10px 0;
@@ -524,15 +567,15 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 .mode-tab-btn:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(125, 125, 125, 0.08);
   color: var(--text-secondary);
   border-color: var(--border-subtle);
 }
 
 .mode-tab-btn.active {
-  background: rgba(255,255,255,0.08);
-  color: #FFFFFF;
-  border-color: rgba(255,255,255,0.25);
+  background: rgba(125, 125, 125, 0.12);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
   font-weight: 600;
 }
 
@@ -584,10 +627,10 @@ input[type=range]::-webkit-slider-thumb:hover {
   width: 100%;
   padding: 8px 12px 8px 32px;
   font-size: 0.82rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: #FFFFFF;
+  color: var(--text-primary);
   outline: none;
   transition: all 0.18s ease;
   font-family: var(--font-sans);
@@ -597,8 +640,8 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 .studio-lang-search-input:focus {
   border-color: var(--border-medium);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.06);
+  background: var(--bg-input);
+  box-shadow: 0 0 0 2px rgba(125, 125, 125, 0.1);
 }
 
 .studio-lang-search-icon {
@@ -639,21 +682,21 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 .studio-lang-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #FFFFFF;
+  background: rgba(125, 125, 125, 0.08);
+  color: var(--text-primary);
   border-color: var(--border-subtle);
 }
 
 .studio-lang-item.active {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #FFFFFF;
+  background: rgba(125, 125, 125, 0.12);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 rgba(255,255,255,0.6);
+  box-shadow: inset 2px 0 0 var(--border-active);
 }
 
 .studio-lang-item.active .lang-check-icon {
-  color: #FFFFFF;
+  color: var(--text-primary);
 }
 
 /* ============================================================
@@ -670,24 +713,24 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 /* ============================================================
-   INPUTS & TEXTAREAS inside panels — solid black, no mountain
+   INPUTS & TEXTAREAS inside panels
    ============================================================ */
 textarea, input[type="text"], input[type="email"], input[type="password"],
 input[type="search"], select {
-  background: rgba(0,0,0,0.8) !important;
-  color: #FFFFFF !important;
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--radius-sm) !important;
   font-family: var(--font-sans) !important;
   outline: none;
-  transition: border-color 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 textarea::placeholder, input::placeholder { color: var(--text-placeholder) !important; }
 
 textarea:focus, input:focus, select:focus {
-  border-color: var(--border-medium) !important;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.05) !important;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 2px rgba(125, 125, 125, 0.1) !important;
 }
 
 select {
@@ -696,16 +739,16 @@ select {
 }
 
 select option {
-  background: #0a0a0a;
-  color: #FFFFFF;
+  background: var(--bg-card);
+  color: var(--text-primary);
 }
 
 /* ============================================================
    DEMO/ZERO-COST BANNER
    ============================================================ */
 .demo-banner {
-  background: rgba(0, 0, 0, 0.9);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--banner-bg);
+  border-bottom: 1px solid var(--border-subtle);
   padding: 7px 0;
   text-align: center;
   font-size: 0.78rem;
@@ -723,10 +766,11 @@ select option {
    FOOTER
    ============================================================ */
 .site-footer {
-  background: rgba(0, 0, 0, 0.94);
+  background: var(--footer-bg);
   border-top: 1px solid var(--border-subtle);
   padding: 36px 0;
   margin-top: auto;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* ============================================================

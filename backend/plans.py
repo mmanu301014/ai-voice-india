@@ -1,73 +1,120 @@
 """
 AI VOICE INDIA — Subscription Plans Configuration
 Defines pricing, limits, and feature lists for all subscription tiers.
-Centralized so prices and limits can be easily updated in one place.
+Updated according to platform specifications:
+- BASIC CREATOR: ₹99/month, 200 characters/month
+- PRO: ₹199/month, 1,000 characters/month
+- BUSINESS: ₹999/month, 5,000 characters/month
 """
 
+# ── Monthly Character Limit Config ──────────────────────────────────────────
+BASIC_MONTHLY_CHAR_LIMIT    = 200         # 200 characters / month
+PRO_MONTHLY_CHAR_LIMIT      = 1_000       # 1,000 characters / month
+BUSINESS_MONTHLY_CHAR_LIMIT = 5_000       # 5,000 characters / month
+
+# Backward compatibility alias
+FREE_MONTHLY_CHAR_LIMIT     = BASIC_MONTHLY_CHAR_LIMIT
+FREE_TOTAL_CHAR_LIMIT       = BASIC_MONTHLY_CHAR_LIMIT
+BASIC_TOTAL_CHAR_LIMIT      = BASIC_MONTHLY_CHAR_LIMIT
+PRO_TOTAL_CHAR_LIMIT        = PRO_MONTHLY_CHAR_LIMIT
+
 PLANS = {
-    "free": {
-        "id": "free",
-        "name": "Free / Starter",
-        "price_inr": 0,
-        "amount_paise": 0,
-        "period": "Forever Free",
-        "daily_generation_limit": 15,
-        "max_characters_per_gen": 2000,
-        "badge": "Current Plan",
-        "description": "Zero-cost voice generation for personal experimentation and regional speech testing.",
-        "features": [
-            "16 Indian regional languages & English",
-            "15 voice generations per day",
-            "Up to 2,000 characters per generation",
-            "High-quality Neural Voices (Edge TTS)",
-            "Standard MP3 audio download",
-            "Smart Indian text normalizer (₹, Lakhs, Crores)",
-            "Full Unicode native script support"
-        ]
-    },
     "basic": {
         "id": "basic",
         "name": "Basic Creator",
-        "price_inr": 49,
-        "amount_paise": 4900,
-        "period": "1 Month",
-        "daily_generation_limit": 100,
-        "max_characters_per_gen": 5000,
-        "badge": "Popular",
-        "description": "Optimized for YouTube creators, Instagram Reels, and short-form video narrators.",
+        "shortName": "Basic",
+        "price_inr": 99,
+        "amount_paise": 9900,
+        "period": "/month",
+        "billing_cycle": "Monthly",
+        "daily_generation_limit": 50,
+        "max_characters_per_gen": 200,
+        "monthly_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
+        "total_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
+        "badge": "MOST POPULAR",
+        "accent": "orange",
+        "description": "Ideal for getting started with AI Indian voices and personal projects.",
         "features": [
-            "Everything in Free plan",
-            "100 voice generations per day",
-            "Up to 5,000 characters per generation",
-            "Full HD broadcast audio exports",
-            "Fast generation queue priority",
-            "Commercial creator rights for YouTube & Reels",
-            "Priority discord/email support"
+            "200 characters/month",
+            "All 16 Indian languages & voices",
+            "Standard voice quality",
+            "Email support"
+        ]
+    },
+    "free": {
+        "id": "free",
+        "name": "Basic Creator",
+        "shortName": "Basic",
+        "price_inr": 99,
+        "amount_paise": 9900,
+        "period": "/month",
+        "billing_cycle": "Monthly",
+        "daily_generation_limit": 50,
+        "max_characters_per_gen": 200,
+        "monthly_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
+        "total_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
+        "badge": "MOST POPULAR",
+        "accent": "orange",
+        "description": "Ideal for getting started with AI Indian voices and personal projects.",
+        "features": [
+            "200 characters/month",
+            "All 16 Indian languages & voices",
+            "Standard voice quality",
+            "Email support"
         ]
     },
     "pro": {
         "id": "pro",
-        "name": "Pro Studio",
-        "price_inr": 99,
-        "amount_paise": 9900,
-        "period": "1 Month",
-        "daily_generation_limit": 500,
-        "max_characters_per_gen": 10000,
-        "badge": "Best Value",
-        "description": "Maximum power for agencies, podcasters, EdTech educators, & commercial brands.",
+        "name": "Pro",
+        "shortName": "Pro",
+        "price_inr": 199,
+        "amount_paise": 19900,
+        "period": "/month",
+        "billing_cycle": "Monthly",
+        "daily_generation_limit": 200,
+        "max_characters_per_gen": 1000,
+        "monthly_character_limit": PRO_MONTHLY_CHAR_LIMIT,
+        "total_character_limit": PRO_MONTHLY_CHAR_LIMIT,
+        "badge": "BEST VALUE",
+        "accent": "purple",
+        "description": "Optimized for active YouTube creators, Reels narrators, and podcasts.",
         "features": [
-            "Everything in Basic plan",
-            "500 voice generations per day",
-            "Up to 10,000 characters per generation",
-            "Ultra-low latency synthesis engine",
-            "Commercial broadcast licensing rights",
-            "Unlimited MP3 downloads & disk cache",
-            "Dedicated 24/7 creator priority support"
+            "1,000 characters/month",
+            "All 16 Indian languages & voices",
+            "High quality voices",
+            "Priority support",
+            "Commercial license"
+        ]
+    },
+    "business": {
+        "id": "business",
+        "name": "Business",
+        "shortName": "Business",
+        "price_inr": 999,
+        "amount_paise": 99900,
+        "period": "/month",
+        "billing_cycle": "Monthly",
+        "daily_generation_limit": 1000,
+        "max_characters_per_gen": 5000,
+        "monthly_character_limit": BUSINESS_MONTHLY_CHAR_LIMIT,
+        "total_character_limit": BUSINESS_MONTHLY_CHAR_LIMIT,
+        "badge": "FOR BUSINESS",
+        "accent": "blue",
+        "description": "Designed for brands, agencies, and professional production teams.",
+        "features": [
+            "5,000 characters/month",
+            "All 16 Indian languages & voices",
+            "Priority voice processing",
+            "Commercial license",
+            "Custom voice cloning (optional)"
         ]
     }
 }
 
 
 def get_plan(plan_id: str) -> dict:
-    """Fetch plan details by id. Defaults to free if not found."""
-    return PLANS.get(plan_id.lower().strip(), PLANS["free"])
+    """Fetch plan details by id. Defaults to basic if not found."""
+    if not plan_id:
+        return PLANS["basic"]
+    clean = str(plan_id).lower().strip()
+    return PLANS.get(clean, PLANS["basic"])

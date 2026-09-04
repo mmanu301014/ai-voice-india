@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 export default function UpgradeModal({ onClose, onUpgrade, remainingChars = 0 }) {
   const { user } = useAuth();
   const charactersUsed = user?.characters_used ?? 0;
-  const characterLimit = user?.character_limit ?? 200;
+  const characterLimit = user?.character_limit ?? 5000;
 
   // Close on Escape key
   useEffect(() => {

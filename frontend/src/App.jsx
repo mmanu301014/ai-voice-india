@@ -23,6 +23,8 @@ function MainApp() {
   const [selectedLang, setSelectedLang] = useState('en');
   const [initialMode, setInitialMode] = useState('youtube');
   const [initialStyle, setInitialStyle] = useState('Storytelling');
+  const [openLangModal, setOpenLangModal] = useState(false);
+  const [openVoiceModal, setOpenVoiceModal] = useState(false);
   const { isAuthenticated, loading } = useAuth();
 
   useEffect(() => {
@@ -140,10 +142,14 @@ function MainApp() {
       <main style={{ flex: 1 }}>
         {activeTab === 'studio' && (
           <>
-            <Hero onGetStarted={() => {
-              const el = document.getElementById('studio-textarea');
-              if (el) el.focus();
-            }} />
+            <Hero
+              onOpenLanguages={() => setOpenLangModal(true)}
+              onOpenVoices={() => setOpenVoiceModal(true)}
+              onGetStarted={() => {
+                const el = document.getElementById('studio-textarea');
+                if (el) el.focus();
+              }}
+            />
             <VoiceStudio
               voices={voices}
               selectedLang={selectedLang}
@@ -151,6 +157,10 @@ function MainApp() {
               initialMode={initialMode}
               initialStyle={initialStyle}
               onOpenUpgrade={handleOpenUpgrade}
+              openLangModal={openLangModal}
+              setOpenLangModal={setOpenLangModal}
+              openVoiceModal={openVoiceModal}
+              setOpenVoiceModal={setOpenVoiceModal}
             />
             <CreatorShowcase
               onSelectMode={handleSelectModeFromShowcase}

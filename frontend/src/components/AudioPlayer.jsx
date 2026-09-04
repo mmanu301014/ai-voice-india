@@ -93,10 +93,11 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
   if (!audioUrl) return null;
 
   return (
-    <div className="glass-card" style={{
-      padding: '24px',
+    <div className="audio-player-container" style={{
+      padding: '16px',
+      borderRadius: 'var(--radius-md)',
+      background: 'linear-gradient(180deg, rgba(255, 138, 0, 0.08) 0%, rgba(10, 10, 10, 0.95) 100%)',
       border: '1px solid rgba(255, 138, 0, 0.3)',
-      background: 'linear-gradient(180deg, rgba(26, 36, 62, 0.7) 0%, rgba(13, 18, 31, 0.9) 100%)',
       position: 'relative',
       overflow: 'hidden'
     }}>
@@ -113,52 +114,53 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '18px',
+        marginBottom: '14px',
         flexWrap: 'wrap',
-        gap: '12px'
+        gap: '8px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <div className="player-wave-container" style={{
             display: 'flex',
             alignItems: 'flex-end',
-            gap: '3px',
-            height: '24px',
-            padding: '0 4px'
+            gap: '2px',
+            height: '20px',
+            padding: '0 2px',
+            flexShrink: 0
           }}>
             <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
             <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
             <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
             <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
             <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
           </div>
 
-          <div>
-            <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              Generated Speech Ready
-              <span className="badge badge-emerald">HD Audio</span>
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontSize: '0.94rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+              <span>Audio Ready</span>
+              <span className="badge badge-emerald" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>HD</span>
             </h3>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              Voice: <strong style={{ color: 'var(--saffron-primary)' }}>{voiceMeta?.name || 'Selected Voice'}</strong> • {characterCount} chars
-              {generationTime ? ` • Generated in ${generationTime}s` : ''}
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <strong style={{ color: 'var(--saffron-primary)' }}>{voiceMeta?.name || 'Selected Voice'}</strong> • {characterCount} chars
+              {generationTime ? ` • ${generationTime}s` : ''}
             </div>
           </div>
         </div>
 
-        {/* Action: Download */}
+        {/* Action: Download MP3 */}
         <a
           href={audioUrl}
           download={filename || 'ai-voice-india.mp3'}
-          className="btn-secondary"
-          style={{ textDecoration: 'none' }}
+          className="btn-secondary btn-compact"
+          style={{ textDecoration: 'none', color: '#00D2FF', borderColor: 'rgba(0, 210, 255, 0.3)' }}
+          title="Download MP3 file"
         >
-          <Download size={16} color="#00D2FF" />
-          <span>Download MP3</span>
+          <Download size={14} />
+          <span>Download</span>
         </a>
       </div>
 
       {/* Progress & Scrubbing Bar */}
-      <div style={{ marginBottom: '14px' }}>
+      <div style={{ marginBottom: '12px' }}>
         <input
           type="range"
           min="0"
@@ -166,14 +168,15 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
           step="0.01"
           value={currentTime}
           onChange={handleSeek}
-          style={{ width: '100%', accentColor: 'var(--saffron-primary)' }}
+          aria-label="Audio scrubber"
+          style={{ width: '100%', accentColor: 'var(--saffron-primary)', cursor: 'pointer' }}
         />
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
-          fontSize: '0.75rem',
+          fontSize: '0.72rem',
           color: 'var(--text-muted)',
-          marginTop: '4px',
+          marginTop: '2px',
           fontVariantNumeric: 'tabular-nums'
         }}>
           <span>{formatTime(currentTime)}</span>
@@ -181,17 +184,22 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
         </div>
       </div>
 
-      {/* Controls Bar */}
-      <div className="audio-controls-row" style={{
-        marginBottom: '4px'
+      {/* Controls Bar (Mobile-friendly wrap) */}
+      <div className="audio-player-controls" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '10px'
       }}>
-        {/* Play / Pause / Replay */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Play / Pause / Replay / Speed */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={togglePlay}
+            aria-label={isPlaying ? 'Pause Audio' : 'Play Audio'}
             style={{
-              width: '46px',
-              height: '46px',
+              width: '40px',
+              height: '40px',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, var(--saffron-primary) 0%, #FF512F 100%)',
               border: 'none',
@@ -200,11 +208,12 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: '0 6px 16px -2px rgba(255, 107, 0, 0.5)',
-              transition: 'transform 0.15s ease'
+              boxShadow: '0 4px 12px rgba(255, 107, 0, 0.4)',
+              transition: 'transform 0.15s ease',
+              flexShrink: 0
             }}
           >
-            {isPlaying ? <Pause size={22} /> : <Play size={22} style={{ marginLeft: '2px' }} />}
+            {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: '2px' }} />}
           </button>
 
           <button
@@ -214,26 +223,26 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
                 audioRef.current.play().then(() => setIsPlaying(true));
               }
             }}
-            className="btn-secondary"
+            className="btn-secondary btn-compact"
             title="Replay from start"
-            style={{ padding: '8px 12px' }}
+            aria-label="Replay audio"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={13} />
           </button>
 
-          {/* Speed badge button */}
+          {/* Speed multiplier badge button */}
           <button
             onClick={handleRateChange}
-            className="btn-secondary"
-            style={{ padding: '8px 12px', fontSize: '0.8rem', fontWeight: 600 }}
-            title="Toggle playback rate"
+            className="btn-secondary btn-compact"
+            style={{ fontSize: '0.75rem', fontWeight: 700 }}
+            title="Toggle playback speed"
           >
             {playbackRate}x
           </button>
         </div>
 
         {/* Volume Control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '150px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={toggleMute}
             style={{
@@ -241,10 +250,13 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
               border: 'none',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
-              padding: '4px'
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center'
             }}
+            aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
           >
-            {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
           <input
             type="range"
@@ -253,7 +265,8 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
             step="0.05"
             value={isMuted ? 0 : volume}
             onChange={handleVolumeChange}
-            style={{ width: '90px' }}
+            aria-label="Volume level"
+            style={{ width: '70px', accentColor: 'var(--saffron-primary)' }}
           />
         </div>
       </div>

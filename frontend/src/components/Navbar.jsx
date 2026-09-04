@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Mic, Globe, Volume2, Layers, HelpCircle, LogOut, User,
-  CreditCard, Sun, Moon, Zap
+  CreditCard, Sun, Moon, Zap, Menu, X, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,10 +9,11 @@ import { useTheme } from '../context/ThemeContext';
 export default function Navbar({ activeTab, setActiveTab, healthData }) {
   const { user, logout, isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const planName = (user?.plan || 'free').toUpperCase();
   const charactersUsed = user?.characters_used ?? 0;
-  const characterLimit = user?.character_limit ?? 200;
+  const characterLimit = user?.character_limit ?? 5000;
   const charactersRemaining = user?.characters_remaining ?? Math.max(0, characterLimit - charactersUsed);
 
   const navItems = [
@@ -24,271 +25,291 @@ export default function Navbar({ activeTab, setActiveTab, healthData }) {
     { id: 'about',        label: 'About',            icon: Layers },
   ];
 
+  const handleNavClick = (tabId) => {
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <header className="navbar-header">
-      <div className="container navbar-container">
-        {/* ── Top Row: Logo + User Controls ── */}
-        <div className="navbar-top-row">
-          {/* Brand */}
-          <div
-            onClick={() => setActiveTab('studio')}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
-          >
-            {/* Logo icon */}
-            <div style={{
-              width: '36px', height: '36px',
-              borderRadius: '9px',
-              border: '1px solid var(--border-medium)',
-              background: 'var(--bg-card)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <Mic size={18} color="var(--saffron-primary)" />
+    <>
+      <header className="navbar-header">
+        <div className="container navbar-container">
+          {/* ── Top Row: Hamburger + Logo + User Controls ── */}
+          <div className="navbar-top-row">
+            {/* Left: Hamburger button (mobile) + Brand Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <button
+                type="button"
+                className="hamburger-btn"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
+                title="Toggle Navigation Menu"
+              >
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+
+              <div
+                onClick={() => handleNavClick('studio')}
+                className="navbar-brand"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none', minWidth: 0 }}
+              >
+                {/* Logo icon with soundwaves */}
+                <div className="navbar-logo-icon">
+                  <Mic size={17} color="var(--saffron-primary)" />
+                </div>
+
+                <div className="navbar-brand-text">
+                  <div className="navbar-brand-title">
+                    AI VOICE INDIA
+                  </div>
+                  <div className="navbar-brand-sub">
+                    Natural AI voices
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <div style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '1.1rem',
-                letterSpacing: '-0.01em',
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap',
-                lineHeight: 1.2,
-              }}>
-                AI VOICE INDIA
-              </div>
-              <div style={{
-                fontSize: '0.68rem',
-                color: 'var(--text-muted)',
-                fontWeight: 400,
-                letterSpacing: '0.03em',
-              }}>
-                Natural AI voices
-              </div>
+            {/* Right: Plan Info + Character Counter + Theme Toggle + User + Logout */}
+            <div className="navbar-right">
+              {isAuthenticated && user ? (
+                <>
+                  {/* Character Counter Badge (Desktop / Tablet) */}
+                  <div
+                    onClick={() => handleNavClick('upgrade')}
+                    className="navbar-char-badge"
+                    title="Remaining generation characters. Click to view upgrade plans."
+                  >
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: charactersRemaining <= 0 ? '#ef4444' : (charactersRemaining < 50 ? '#f59e0b' : '#10b981'),
+                      flexShrink: 0
+                    }} />
+                    <span>
+                      <strong>{charactersRemaining.toLocaleString()}</strong> / {characterLimit.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Plan Badge & Upgrade Button */}
+                  <button
+                    onClick={() => handleNavClick('upgrade')}
+                    id="navbar-upgrade-btn"
+                    className="navbar-plan-badge"
+                    title="View or Upgrade Plan"
+                  >
+                    <Zap size={11} />
+                    <span>{planName}</span>
+                  </button>
+
+                  {/* Compact User Chip */}
+                  <div
+                    className="navbar-user-chip"
+                    onClick={() => handleNavClick('upgrade')}
+                    title={`Logged in as ${user.name || user.email}`}
+                  >
+                    <div className="user-avatar-circle">
+                      <User size={12} color="var(--text-primary)" />
+                    </div>
+                    <span className="navbar-username">
+                      {user.name || 'User'}
+                    </span>
+                    <ChevronDown size={11} className="navbar-user-chevron" />
+                  </div>
+                </>
+              ) : (
+                <div className="navbar-auth-buttons">
+                  <button
+                    onClick={() => handleNavClick('login')}
+                    className="btn-signin-nav"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => handleNavClick('register')}
+                    className="btn-signup-nav"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
+
+              {/* Theme Toggle Button (Light / Dark) */}
+              <button
+                id="theme-toggle-btn"
+                className="theme-toggle-btn"
+                onClick={toggleTheme}
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
+                aria-label="Toggle Theme"
+              >
+                {theme === 'dark' ? (
+                  <Sun size={15} color="#FFA333" />
+                ) : (
+                  <Moon size={15} color="#6366f1" />
+                )}
+              </button>
+
+              {/* Logout Icon Button */}
+              {isAuthenticated && (
+                <button
+                  id="navbar-logout"
+                  className="navbar-logout-btn"
+                  onClick={logout}
+                  title="Logout"
+                  aria-label="Logout"
+                >
+                  <LogOut size={14} />
+                  <span className="logout-text">Logout</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Right: Plan Info + Character Counter + Theme Toggle + User + Logout */}
-          <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {isAuthenticated && user ? (
-              <>
-                {/* Character Counter Badge */}
-                <div
-                  onClick={() => setActiveTab('upgrade')}
-                  title="Remaining generation characters. Click to view upgrade plans."
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-full)',
-                    background: charactersRemaining <= 0 ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-card)',
-                    border: `1px solid ${charactersRemaining <= 0 ? 'rgba(239, 68, 68, 0.35)' : 'var(--border-medium)'}`,
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    color: charactersRemaining <= 0 ? '#ef4444' : 'var(--text-primary)',
-                    transition: 'all 0.18s ease',
-                  }}
+          {/* ── Desktop Navigation Tabs ── */}
+          <nav className="navbar-nav navbar-nav-desktop">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={isActive ? 'nav-active' : ''}
                 >
-                  <span style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: charactersRemaining <= 0 ? '#ef4444' : (charactersRemaining < 50 ? '#f59e0b' : '#10b981'),
-                  }} />
-                  <span>
-                    <strong>{charactersRemaining}</strong> / {characterLimit} chars
-                  </span>
+                  <Icon size={14} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* ── Mobile Navigation Drawer ── */}
+      {mobileMenuOpen && (
+        <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="navbar-logo-icon" style={{ width: '32px', height: '32px' }}>
+                  <Mic size={16} color="var(--saffron-primary)" />
                 </div>
-
-                {/* Plan Badge & Upgrade Button */}
-                <button
-                  onClick={() => setActiveTab('upgrade')}
-                  id="navbar-upgrade-btn"
-                  title="View or Upgrade Plan"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 11px',
-                    borderRadius: 'var(--radius-full)',
-                    background: planName === 'BASIC' || planName === 'FREE' ? 'linear-gradient(135deg, #FF8A00 0%, #FF512F 100%)' : 'var(--bg-card)',
-                    color: planName === 'BASIC' || planName === 'FREE' ? '#FFFFFF' : 'var(--text-primary)',
-                    border: planName === 'BASIC' || planName === 'FREE' ? 'none' : '1px solid var(--border-medium)',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    letterSpacing: '0.04em',
-                    boxShadow: planName === 'BASIC' || planName === 'FREE' ? '0 2px 10px rgba(255, 138, 0, 0.3)' : 'none',
-                    transition: 'all 0.18s ease',
-                  }}
-                >
-                  <Zap size={12} />
-                  <span>{planName}</span>
-                </button>
-
-                {/* User chip */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                }}>
-                  <div style={{
-                    width: '22px', height: '22px', borderRadius: '50%',
-                    background: 'rgba(125,125,125,0.15)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <User size={12} color="var(--text-primary)" />
-                  </div>
-                  <span style={{
-                    fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)',
-                    maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {user.name}
-                  </span>
+                <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
+                  AI VOICE INDIA
                 </div>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setActiveTab('login')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'transparent',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-medium)';
-                    e.currentTarget.style.color = 'var(--text-primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }}
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => setActiveTab('register')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'linear-gradient(135deg, #FF8A00 0%, #FF512F 100%)',
-                    border: 'none',
-                    color: '#FFFFFF',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 10px rgba(255, 138, 0, 0.3)',
-                    transition: 'all 0.18s ease',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.1)'}
-                  onMouseLeave={e => e.currentTarget.style.filter = ''}
-                >
-                  Sign Up
-                </button>
-              </>
-            )}
-
-            {/* Theme Toggle Button (Light / Dark) */}
-            <button
-              id="theme-toggle-btn"
-              onClick={toggleTheme}
-              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
-              aria-label="Toggle Theme"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '34px',
-                height: '34px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-medium)',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                flexShrink: 0,
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--border-focus)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--border-medium)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              {theme === 'dark' ? (
-                <Sun size={16} color="#FFA333" />
-              ) : (
-                <Moon size={16} color="#6366f1" />
-              )}
-            </button>
-
-            {/* Logout */}
-            {isAuthenticated && (
+              </div>
               <button
-                id="navbar-logout"
-                onClick={logout}
-                title="Logout"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '5px',
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.78rem', fontWeight: 500,
-                  cursor: 'pointer', transition: 'all 0.18s ease',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-medium)';
-                  e.currentTarget.style.color = 'var(--text-primary)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                }}
+                className="mobile-drawer-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close Navigation"
               >
-                <LogOut size={13} />
-                <span className="logout-text">Logout</span>
+                <X size={18} />
               </button>
+            </div>
+
+            {/* Mobile User Profile Section */}
+            {isAuthenticated && user && (
+              <div className="mobile-drawer-user">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="user-avatar-circle" style={{ width: '36px', height: '36px' }}>
+                    <User size={18} />
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.name || 'User'}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.email}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mobile-drawer-stats">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '6px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Characters remaining:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{charactersRemaining.toLocaleString()} / {characterLimit.toLocaleString()}</strong>
+                  </div>
+                  <button
+                    onClick={() => handleNavClick('upgrade')}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      background: 'linear-gradient(135deg, #FF8A00 0%, #FF512F 100%)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-sm)',
+                      color: '#FFFFFF',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Zap size={13} />
+                    <span>Plan: {planName} — Upgrade / Refill</span>
+                  </button>
+                </div>
+              </div>
             )}
+
+            {/* Mobile Navigation Links */}
+            <div className="mobile-drawer-nav">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className={`mobile-nav-link ${isActive ? 'active' : ''}`}
+                  >
+                    <Icon size={18} color={isActive ? 'var(--saffron-primary)' : 'var(--text-muted)'} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mobile Drawer Footer with Auth & Dev Mode */}
+            <div className="mobile-drawer-footer">
+              {!isAuthenticated ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                  <button
+                    onClick={() => handleNavClick('login')}
+                    className="btn-secondary"
+                    style={{ width: '100%', padding: '10px', justifyContent: 'center' }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => handleNavClick('register')}
+                    className="btn-primary"
+                    style={{ width: '100%', padding: '10px', justifyContent: 'center', background: 'var(--saffron-primary)', color: '#fff' }}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="btn-secondary"
+                  style={{ width: '100%', padding: '10px', justifyContent: 'center', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                >
+                  <LogOut size={15} />
+                  <span>Log Out of Account</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* ── Navigation Tabs ── */}
-        <nav className="navbar-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={isActive ? 'nav-active' : ''}
-              >
-                <Icon size={14} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-    </header>
+      )}
+    </>
   );
 }
+

@@ -5,7 +5,6 @@ import Navbar from './components/Navbar';
 import DemoBanner from './components/DemoBanner';
 import Hero from './components/Hero';
 import VoiceStudio from './components/VoiceStudio';
-import CreatorShowcase from './components/CreatorShowcase';
 import VoiceLibrary from './components/VoiceLibrary';
 import LanguagesShowcase from './components/LanguagesShowcase';
 import HowItWorks from './components/HowItWorks';
@@ -42,18 +41,6 @@ function MainApp() {
 
   const handleSelectVoiceFromLibrary = (voice) => {
     setSelectedLang(voice.language);
-    setActiveTab('studio');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSelectModeFromShowcase = (modeId) => {
-    setInitialMode(modeId);
-    setActiveTab('studio');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSelectStyleFromShowcase = (styleId) => {
-    setInitialStyle(styleId);
     setActiveTab('studio');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -161,10 +148,6 @@ function MainApp() {
               setOpenLangModal={setOpenLangModal}
               openVoiceModal={openVoiceModal}
               setOpenVoiceModal={setOpenVoiceModal}
-            />
-            <CreatorShowcase
-              onSelectMode={handleSelectModeFromShowcase}
-              onSelectStyle={handleSelectStyleFromShowcase}
             />
           </>
         )}

@@ -4,7 +4,8 @@
  * Reads/stores JWT from localStorage, validates against /api/auth/me.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginUser, registerUser, fetchCurrentUser } from '../services/api';
+import { loginUser, registerUser, fetchCurrentUser, loginWithGoogle } from '../services/api';
+import { signInWithGoogle, firebaseLogout } from '../services/firebase';
 
 const AuthContext = createContext(null);
 
@@ -15,19 +16,25 @@ export function AuthProvider({ children }) {
 
   // On mount — restore session from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('aiv_token');
-    if (stored) {
-      fetchCurrentUser(stored)
-        .then((userData) => {
-          setToken(stored);
-          setUser(userData);
-        })
-        .catch(() => {
-          // Token is invalid/expired — clear it
-          localStorage.removeItem('aiv_token');
-        })
-        .finally(() => setLoading(false));
-    } else {
+    try {
+      const stored = localStorage.getItem('aiv_token');
+      if (stored) {
+        fetchCurrentUser(stored)
+          .then((userData) => {
+            setToken(stored);
+            setUser(userData);
+          })
+          .catch(() => {
+            // Token is invalid/expired — clear it
+            try { localStorage.removeItem('aiv_token'); } catch {}
+            setUser(null);
+          })
+          .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Session restore error:', err);
       setLoading(false);
     }
   }, []);
@@ -52,6 +59,29 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('aiv_token');
     setToken(null);
     setUser(null);
+    // Also clear Firebase session so the Google popup re-prompts next time
+    firebaseLogout();
+  }, []);
+
+  /**
+   * googleLogin — full Google OAuth flow:
+   * 1. Opens Google popup via Firebase
+   * 2. Sends Firebase ID token to backend /api/auth/google
+   * 3. Backend verifies token, upserts user, returns JWT
+   * 4. Stores JWT and updates user state (same as normal login)
+   */
+  const googleLogin = useCallback(async () => {
+    // Step 1: Firebase popup → ID token
+    const { idToken } = await signInWithGoogle();
+
+    // Step 2: Exchange ID token for our backend JWT
+    const res = await loginWithGoogle(idToken);
+
+    // Step 3: Persist session
+    localStorage.setItem('aiv_token', res.access_token);
+    setToken(res.access_token);
+    setUser(res.user);
+    return res.user;
   }, []);
 
   /**
@@ -90,6 +120,7 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      googleLogin,
       updateUser,
       refreshUser,
     }}>

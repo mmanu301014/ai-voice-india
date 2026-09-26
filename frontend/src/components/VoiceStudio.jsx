@@ -1,191 +1,365 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Mic, Sparkles, Volume2, Settings2, Play, Square, RefreshCw,
-  Trash2, Copy, Check, Sliders, Globe, Layers, AlertCircle, Info,
-  Video, Smartphone, BookOpen, GraduationCap, Radio, Megaphone, RotateCcw,
-  Search, Zap, Download, X, Edit3, ChevronRight, VolumeX
+  Volume2, Play, Pause, Square, RefreshCw,
+  Trash2, Copy, Check, Sliders, Globe, AlertCircle, Info,
+  RotateCcw, Search, Download, X, Edit3, ChevronRight,
+  Home, IndianRupee, FileText, Code, Headphones, LogOut, ChevronDown,
+  User, ArrowRight, Mic, Shield, Zap, Sparkles, Star, Menu, Clock,
+  Crown, Settings, Wand2
 } from 'lucide-react';
 import { INDIAN_LANGUAGES } from '../data/languages';
-import { CREATOR_MODES, VOICE_STYLES } from '../data/creatorModes';
-import { generateSpeech, normalizeText } from '../services/api';
+import { generateSpeech } from '../services/api';
 import { useWebSpeechVoices } from '../hooks/useWebSpeechVoices';
+import { cleanVoiceName, detectVoiceGender, LANGUAGE_LOCALE_MAP } from '../services/webSpeechService';
 import { useAuth } from '../context/AuthContext';
 import AudioPlayer from './AudioPlayer';
 import UpgradeModal from './UpgradeModal';
+import PdfToVoiceView from './PdfToVoiceView';
+import AiAssistantView from './AiAssistantView';
+import VoiceEffectsView from './VoiceEffectsView';
+import HelpSupportView from './HelpSupportView';
+import SettingsView from './SettingsView';
+
+// ── Soundwave Logo Icon matching reference design ────────────────────────────
+function SoundwaveIcon({ color = '#F0F6FC', size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="11" width="3.8" height="10" rx="1.9" fill={color} />
+      <rect x="8" y="7" width="3.8" height="18" rx="1.9" fill={color} />
+      <rect x="14" y="3" width="3.8" height="26" rx="1.9" fill={color} />
+      <rect x="20" y="7" width="3.8" height="18" rx="1.9" fill={color} />
+      <rect x="26" y="11" width="3.8" height="10" rx="1.9" fill={color} />
+    </svg>
+  );
+}
+
+const EXAMPLE_PROMPTS = [
+  { title: "Explain artificial intelligence", desc: "Learn the core concepts of AI & neural synthesis", sampleText: "Artificial intelligence is the simulation of human intelligence processes by machines, especially computer systems. It enables automated voice creation, speech recognition, and language processing." },
+  { title: "Write a short story", desc: "Generate a creative narration script for voiceovers", sampleText: "Once upon a time in a peaceful valley surrounded by majestic mountains, an ancient river whispered secrets of forgotten ages to all who passed by." },
+  { title: "Summarize this topic", desc: "Create concise, voice-ready summaries", sampleText: "Voice synthesis technology transforms written text into natural human speech in seconds, empowering creators across India with high-quality audio generation." },
+  { title: "Help me learn Python", desc: "Step-by-step programming & syntax guide", sampleText: "Python is a versatile programming language known for its clear syntax and ease of use. You can quickly build voice applications, web servers, and AI models with Python." }
+];
 
 export default function VoiceStudio({
   voices = [],
-  selectedLang,
+  selectedLang = 'en',
   setSelectedLang,
   initialMode = null,
   initialStyle = null,
   onOpenUpgrade = null,
-  openLangModal = false,
-  setOpenLangModal = null,
-  openVoiceModal = false,
-  setOpenVoiceModal = null
+  setActiveTab = null
 }) {
-  const { user, token, updateUser } = useAuth();
+  const auth = useAuth() || {};
+  const user = auth.user;
+  const token = auth.token;
+  const logout = auth.logout || (() => {});
+  const updateUser = auth.updateUser || (() => {});
 
-  // Hook for real device/browser Web Speech API voices
-  const {
-    allRawVoices,
-    availableVoicesForLang: browserVoices,
-    isSpeaking,
-    previewingVoiceId,
-    previewVoice,
-    stopVoice,
-    refreshVoices,
-    isSupported: isWebSpeechSupported
-  } = useWebSpeechVoices(selectedLang);
+  // Hook for Web Speech API voices
+  const webSpeech = useWebSpeechVoices(selectedLang) || {};
+  const browserVoices = Array.isArray(webSpeech.availableVoicesForLang) ? webSpeech.availableVoicesForLang : [];
+  const allRawBrowserVoices = Array.isArray(webSpeech.allRawVoices) ? webSpeech.allRawVoices : [];
 
   const [selectedVoiceId, setSelectedVoiceId] = useState('');
-  const [selectedMode, setSelectedMode] = useState(initialMode || 'youtube');
   const [text, setText] = useState('');
   const [speed, setSpeed] = useState(1.0);
-  const [pitch, setPitch] = useState(0.0);
+  const [pitch, setPitch] = useState(0.5);
+  const [volume, setVolume] = useState(100);
   const [style, setStyle] = useState(initialStyle || 'Storytelling');
   const [enableNormalization, setEnableNormalization] = useState(true);
-  const [searchLangQuery, setSearchLangQuery] = useState('');
-  const [showMobileLangModal, setShowMobileLangModal] = useState(false);
-  const [showMobileVoiceModal, setShowMobileVoiceModal] = useState(false);
 
+  // Dropdown states & selection tracking
+  const [hasSelectedLang, setHasSelectedLang] = useState(false);
+  const [hasSelectedVoice, setHasSelectedVoice] = useState(false);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [showVoiceDropdown, setShowVoiceDropdown] = useState(false);
+  const [searchLangQuery, setSearchLangQuery] = useState('');
+  const [searchVoiceQuery, setSearchVoiceQuery] = useState('');
+  const [activeMenuTab, setActiveMenuTab] = useState('home');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Helper formatting functions for clean language and voice names
+  const getCleanLangName = (langObj) => {
+    if (!langObj) return 'Select Language';
+    const code = langObj.code || '';
+    const name = langObj.name || '';
+    
+    if (code === 'en' || name.toLowerCase().includes('english')) return 'English (India)';
+    if (code === 'kn' || name.toLowerCase().includes('kannada')) return 'Kannada (India)';
+    if (code === 'hi' || name.toLowerCase().includes('hindi')) return 'Hindi (India)';
+    if (code === 'ta' || name.toLowerCase().includes('tamil')) return 'Tamil (India)';
+    if (code === 'te' || name.toLowerCase().includes('telugu')) return 'Telugu (India)';
+    if (code === 'bn' || name.toLowerCase().includes('bengali')) return 'Bengali (India)';
+    if (code === 'mr' || name.toLowerCase().includes('marathi')) return 'Marathi (India)';
+    if (code === 'gu' || name.toLowerCase().includes('gujarati')) return 'Gujarati (India)';
+    if (code === 'ml' || name.toLowerCase().includes('malayalam')) return 'Malayalam (India)';
+    if (code === 'pa' || name.toLowerCase().includes('punjabi')) return 'Punjabi (India)';
+
+    let clean = name.replace(/\s*\([^)]*English[^)]*\)/gi, '').trim();
+    if (!clean.includes('(India)')) {
+      clean += ' (India)';
+    }
+    return clean;
+  };
+
+  const getCleanVoiceName = (voiceObj) => {
+    if (!voiceObj) return 'Select Voice';
+    let name = voiceObj.name || 'Voice';
+    const gender = voiceObj.gender === 'Female' ? 'Female' : (detectVoiceGender(name) === 'Female' ? 'Female' : 'Male');
+
+    // Strip language suffix like "- English", "- Hindi", "(English)", etc.
+    name = name.replace(/\s*[-–—]\s*(English|Hindi|Kannada|Tamil|Telugu|Bengali|Marathi|Gujarati|Malayalam|Punjabi).*$/gi, '').trim();
+    name = name.replace(/\s*\([^)]*\)/g, '').trim();
+
+    // Remove any duplicate "Male -" or "Female -" prefix
+    name = name.replace(/^(Male|Female)\s*[-–—]\s*/i, '').trim();
+
+    return `${gender} – ${name}`;
+  };
+
+  // Active Modals
+  const [activeModal, setActiveModal] = useState(null); // 'creations', 'api', 'pricing', 'about', 'help'
+
+  // Generation & Audio States
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [copied, setCopied] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
 
-  // Sync external modal triggers if passed
-  useEffect(() => {
-    if (openLangModal) {
-      setShowMobileLangModal(true);
-      if (setOpenLangModal) setOpenLangModal(false);
+  // Mutex lock ref to prevent duplicate /api/generate calls
+  const generateLock = useRef(false);
+
+  // Drag & drop for .txt files
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.name.endsWith('.txt') || file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target && typeof event.target.result === 'string') {
+            setText(event.target.result.slice(0, 1000));
+          }
+        };
+        reader.readAsText(file);
+      }
     }
-  }, [openLangModal, setOpenLangModal]);
+  };
 
-  useEffect(() => {
-    if (openVoiceModal) {
-      setShowMobileVoiceModal(true);
-      if (setOpenVoiceModal) setOpenVoiceModal(false);
+  // Quick Prompt Chips
+  const PROMPT_TEMPLATES = {
+    'YouTube Script': "Welcome back to the channel! In today's video, we're diving deep into the extraordinary world of artificial intelligence and its impact on modern technology.",
+    'Podcast': "Hello listeners, welcome to another episode of India Tech Talk. Today we have a special guest joining us to discuss the future of AI voice automation.",
+    'Story': "Once upon a time in a peaceful village nestled in the Western Ghats, a mysterious ancient scroll was discovered near the old temple.",
+    'Announcement': "Attention valued customers! We are thrilled to announce the launch of our brand new AI voice features designed to empower creators across India."
+  };
+
+  const handleChipClick = (chipName) => {
+    const template = PROMPT_TEMPLATES[chipName];
+    if (template) {
+      setText(template.slice(0, 1000));
     }
-  }, [openVoiceModal, setOpenVoiceModal]);
+  };
 
-  // Plan & character allowance calculations — updated to 5,000 chars everywhere
-  const rawPlan = (user?.plan || 'basic').toLowerCase();
-  const planId = rawPlan === 'free' ? 'basic' : rawPlan;
-  const isBasicPlan = planId === 'basic';
-  const isFreePlan = isBasicPlan;
+  // Feedback / Rating State
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
+
+  // My creations history
+  const [creationsHistory, setCreationsHistory] = useState([]);
+
+  const dropdownRef = useRef(null);
+
+  // Character Allowance Calculations
+  const characterLimit = user?.character_limit ?? 1000;
   const charactersUsed = user?.characters_used ?? 0;
-  const characterLimit = user?.character_limit ?? 5000;
   const charactersRemaining = user?.characters_remaining ?? Math.max(0, characterLimit - charactersUsed);
-  const charCount = text.length;
-  const isOverLimit = charCount > characterLimit;
-  const isZeroRemaining = charactersRemaining <= 0;
+  const charCount = text ? text.length : 0;
 
-  // Current language object
-  const currentLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLang) || INDIAN_LANGUAGES[0];
+  // Safe backend voices list
+  const safeVoices = Array.isArray(voices) ? voices : [];
 
-  // Filtered languages for navigation
-  const filteredLanguages = INDIAN_LANGUAGES.filter(lang => {
-    if (!searchLangQuery.trim()) return true;
-    const q = searchLangQuery.toLowerCase().trim();
-    return (
-      lang.name.toLowerCase().includes(q) ||
-      (lang.nativeName && lang.nativeName.toLowerCase().includes(q)) ||
-      (lang.code && lang.code.toLowerCase().includes(q)) ||
-      (lang.bcp47 && lang.bcp47.toLowerCase().includes(q)) ||
-      (lang.region && lang.region.toLowerCase().includes(q))
-    );
+  // Filter available languages
+  const availableLanguages = (Array.isArray(INDIAN_LANGUAGES) ? INDIAN_LANGUAGES : []).filter(lang => {
+    if (!lang) return false;
+    const hasBackendVoice = safeVoices.some(bv => bv && bv.language === lang.code);
+    const langConfig = LANGUAGE_LOCALE_MAP[lang.code];
+    const hasBrowserVoice = langConfig
+      ? allRawBrowserVoices.some(bv => {
+          const langLower = (bv.lang || '').toLowerCase().replace(/_/g, '-');
+          return langConfig.matchPrefixes.some(prefix => langLower.startsWith(prefix));
+        })
+      : false;
+
+    return hasBackendVoice || hasBrowserVoice;
   });
 
-  // Current mode object
-  const currentModeObj = CREATOR_MODES.find(m => m.id === selectedMode) || CREATOR_MODES[0];
+  // Auto-switch selectedLang to first available language if current is missing
+  useEffect(() => {
+    if (availableLanguages.length > 0) {
+      const isSelectedAvailable = availableLanguages.some(l => l.code === selectedLang);
+      if (!isSelectedAvailable && setSelectedLang) {
+        setSelectedLang(availableLanguages[0].code);
+      }
+    }
+  }, [availableLanguages, selectedLang, setSelectedLang]);
 
-  // Backend neural voices for current language
-  const backendVoicesForLang = voices.filter(v => v.language === selectedLang || v.language === 'all');
+  // Current language object
+  const currentLangObj = (availableLanguages.find(l => l && l.code === selectedLang))
+    || availableLanguages[0]
+    || (Array.isArray(INDIAN_LANGUAGES) ? INDIAN_LANGUAGES.find(l => l && l.code === selectedLang) : null)
+    || { code: 'en', name: 'English' };
 
-  // Combined real available voice pool
+  // Backend voices for selected language
+  const backendVoicesForLang = safeVoices
+    .filter(v => v && (v.language === selectedLang))
+    .map(bv => {
+      const rawN = bv.name || 'Voice';
+      const cleanN = cleanVoiceName(rawN, currentLangObj?.name || '');
+      const gender = detectVoiceGender(rawN) === 'Female' ? 'Female' : (bv.gender === 'Female' ? 'Female' : 'Male');
+      return {
+        ...bv,
+        name: cleanN,
+        gender: gender
+      };
+    });
+
+  // Combined Voice list
   const combinedVoiceList = [
     ...browserVoices,
-    ...backendVoicesForLang.filter(bv => !browserVoices.some(wv => wv.name.toLowerCase() === bv.name.toLowerCase()))
+    ...backendVoicesForLang.filter(bv => bv && bv.name && !browserVoices.some(wv => wv && wv.name && String(wv.name).toLowerCase() === String(bv.name).toLowerCase()))
   ];
 
-  // Sync selected voice when language or voice list changes
+  // Default to first voice if available
   useEffect(() => {
     if (combinedVoiceList.length > 0) {
-      const exists = combinedVoiceList.some(v => v.id === selectedVoiceId);
-      if (!exists) {
-        setSelectedVoiceId(combinedVoiceList[0].id);
+      const exists = combinedVoiceList.some(v => v && v.id === selectedVoiceId);
+      if (!exists && combinedVoiceList[0]) {
+        setSelectedVoiceId(combinedVoiceList[0].id || '');
       }
     } else {
       setSelectedVoiceId('');
     }
   }, [selectedLang, browserVoices, voices]);
 
-  // Sync initial mode/style props if updated externally
+  const activeVoiceMeta = combinedVoiceList.find(v => v && v.id === selectedVoiceId) || combinedVoiceList[0];
+
+  // Filtered Languages for search
+  const filteredLanguages = availableLanguages.filter(lang => {
+    if (!lang) return false;
+    if (!searchLangQuery || !searchLangQuery.trim()) return true;
+    const q = searchLangQuery.toLowerCase().trim();
+    return (
+      (lang.name && String(lang.name).toLowerCase().includes(q)) ||
+      (lang.nativeName && String(lang.nativeName).toLowerCase().includes(q)) ||
+      (lang.code && String(lang.code).toLowerCase().includes(q))
+    );
+  });
+
+  // Filtered Voices for search
+  const filteredVoices = combinedVoiceList.filter(v => {
+    if (!v) return false;
+    if (!searchVoiceQuery || !searchVoiceQuery.trim()) return true;
+    const q = searchVoiceQuery.toLowerCase().trim();
+    return (
+      (v.name && String(v.name).toLowerCase().includes(q)) ||
+      (v.gender && String(v.gender).toLowerCase().includes(q)) ||
+      (v.id && String(v.id).toLowerCase().includes(q))
+    );
+  });
+
+  // Click outside listener for dropdowns
   useEffect(() => {
-    if (initialMode) handleSelectMode(initialMode);
-  }, [initialMode]);
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowLangDropdown(false);
+        setShowVoiceDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  useEffect(() => {
-    if (initialStyle) setStyle(initialStyle);
-  }, [initialStyle]);
-
-  const activeVoiceMeta = combinedVoiceList.find(v => v.id === selectedVoiceId) || combinedVoiceList[0];
-
-  // Mode Selection Handler
-  const handleSelectMode = (modeId) => {
-    setSelectedMode(modeId);
-    const m = CREATOR_MODES.find(item => item.id === modeId);
-    if (m) {
-      setStyle(m.suggestedStyle);
-      setSpeed(m.suggestedSpeed);
-      setPitch(m.suggestedPitch || 0.0);
+  const handleCopyText = async () => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(true);
+      setTimeout(() => setCopiedText(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
     }
   };
 
-  // Reset Settings to Defaults
-  const handleResetSettings = () => {
-    setSpeed(currentLangObj?.defaultSpeed || 1.0);
-    setPitch(currentLangObj?.defaultPitch || 0.0);
-    setStyle('Natural');
-    setSelectedMode('youtube');
-    setEnableNormalization(true);
+  const handleDeleteText = () => {
+    setText('');
+    setErrorMessage('');
   };
 
-  const handlePreview = (voiceToPreview, e) => {
-    if (e) e.stopPropagation();
-
-    // If already previewing this voice, stop it
-    if (isSpeaking && previewingVoiceId === voiceToPreview.id) {
-      stopVoice();
-      return;
+  const handleSaveVoice = () => {
+    if (generationResult && generationResult.audio_url) {
+      const a = document.createElement('a');
+      a.href = generationResult.audio_url;
+      a.download = generationResult.filename || 'ai-voice-india.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
-
-    const previewSnippet = text && text.trim() ? text.trim().slice(0, 140) : (currentLangObj?.sample || 'Namaste, welcome to AI Voice India');
-    previewVoice(voiceToPreview, previewSnippet, speed, pitch);
+    // Do NOT call handleGenerate here — download only works when audio exists
   };
 
   const handleGenerate = async () => {
-    if (!text.trim()) {
+    // Prevent duplicate concurrent requests (race condition / React StrictMode guard)
+    if (generateLock.current) {
+      console.warn('[Generate] Request already in flight — ignoring duplicate call.');
+      return;
+    }
+
+    setHasSelectedLang(true);
+    setHasSelectedVoice(true);
+
+    if (!text || !text.trim()) {
       setErrorMessage('Please enter some text to generate speech.');
       return;
     }
 
-    // Client-side guard for 5000 char maximum
     if (charCount > 5000) {
       setErrorMessage(`Text length (${charCount} characters) exceeds the maximum allowed limit of 5,000 characters.`);
       return;
     }
 
-    // Client-side guard for users exceeding remaining allowance
-    if (isZeroRemaining && user) {
+    if (charactersRemaining <= 0 && user) {
       setShowUpgradeModal(true);
-      setErrorMessage(`Your ${characterLimit} characters have been used. Please upgrade or refill to continue.`);
+      setErrorMessage(`Your ${characterLimit} characters have been used. Please upgrade to continue.`);
       return;
     }
 
+    if (combinedVoiceList.length === 0 || (!selectedVoiceId && !activeVoiceMeta)) {
+      setErrorMessage(`Native ${currentLangObj?.name || 'this language'} AI voice is currently under development. Try Hindi or English for similar regional accent options.`);
+      return;
+    }
+
+    // Acquire lock
+    generateLock.current = true;
     setIsGenerating(true);
     setErrorMessage('');
 
@@ -203,57 +377,48 @@ export default function VoiceStudio({
 
       setGenerationResult(result);
 
-      // Refresh remaining character count upon successful generation
       if (result && result.usage) {
         updateUser(result.usage);
       }
+
+      // Add to creations history
+      if (result && result.audio_url) {
+        setCreationsHistory(prev => [
+          {
+            id: Date.now(),
+            text: text.trim().slice(0, 80) + (text.length > 80 ? '...' : ''),
+            language: currentLangObj.name || 'English',
+            voice: activeVoiceMeta?.name || 'Neural Voice',
+            audio_url: result.audio_url,
+            date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          },
+          ...prev
+        ]);
+      }
     } catch (err) {
-      if (err.code === 'FREE_LIMIT_REACHED' || err.code === 'CHARACTER_LIMIT_EXCEEDED') {
+      if (err && (err.code === 'FREE_LIMIT_REACHED' || err.code === 'CHARACTER_LIMIT_EXCEEDED')) {
         setShowUpgradeModal(true);
         setErrorMessage(err.message || 'Character limit reached.');
       } else {
-        console.warn('Backend generation error:', err);
-        setErrorMessage(err.message || 'Something went wrong while generating the audio. Please try again.');
+        console.warn('[Generate] Backend error:', err?.message || err);
+        setErrorMessage(err?.message || 'Something went wrong while generating the audio. Please try again.');
       }
     } finally {
+      // Release lock
+      generateLock.current = false;
       setIsGenerating(false);
     }
   };
 
-  const handleCopy = () => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleClear = () => {
-    setText('');
-    setErrorMessage('');
-    stopVoice();
-  };
-
-  // Human-readable labels for slider values
-  const getSpeedLabel = (s) => {
-    if (s <= 0.75) return 'Slow';
-    if (s >= 1.4) return 'Fast';
-    if (s > 1.05) return 'Brisk';
-    if (s < 0.95) return 'Gentle';
-    return 'Normal';
-  };
-
-  const getPitchLabel = (p) => {
-    if (p <= -0.3) return 'Deep';
-    if (p < -0.05) return 'Lower';
-    if (p >= 0.3) return 'High';
-    if (p > 0.05) return 'Higher';
-    return 'Default';
+  const handleSignOut = () => {
+    if (logout) logout();
+    if (setActiveTab) setActiveTab('home');
   };
 
   return (
-    <div className="container studio-container" style={{ paddingBottom: '60px' }}>
-
-      {/* Upgrade Modal shown when limit is reached */}
+    <div className="ref-dashboard-container" ref={dropdownRef}>
+      
+      {/* Upgrade Modal */}
       {showUpgradeModal && (
         <UpgradeModal
           onClose={() => setShowUpgradeModal(false)}
@@ -265,763 +430,831 @@ export default function VoiceStudio({
         />
       )}
 
-      {/* CREATOR MODES BAR (Responsive horizontally scrollable) */}
-      <div className="creator-mode-bar" style={{ marginBottom: '20px', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        <div className="mode-bar-inner">
-          {CREATOR_MODES.map((m) => {
-            const isSelected = selectedMode === m.id;
-            return (
-              <button
-                key={m.id}
-                onClick={() => handleSelectMode(m.id)}
-                className={`mode-tab-btn${isSelected ? ' active' : ''}`}
-              >
-                <span>{m.name}</span>
-              </button>
-            );
-          })}
-          <div className="mode-tag-label" style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap', paddingRight: '8px' }}>
-            {currentModeObj.tag}
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Active Language & Voice Quick Chips */}
-      <div className="mobile-quick-selector-row">
-        <button
-          type="button"
-          className="mobile-quick-chip"
-          onClick={() => setShowMobileLangModal(true)}
-          title="Change language"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Globe size={14} color="var(--saffron-primary)" />
-            <span style={{ fontWeight: 600 }}>{currentLangObj.name}</span>
-            {currentLangObj.nativeName && (
-              <span style={{ opacity: 0.65, fontSize: '0.74rem' }}>({currentLangObj.nativeName})</span>
-            )}
-          </div>
-          <ChevronRight size={14} style={{ opacity: 0.5 }} />
-        </button>
-
-        <button
-          type="button"
-          className="mobile-quick-chip"
-          onClick={() => setShowMobileVoiceModal(true)}
-          title="Change voice"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-            <Volume2 size={14} color="#00D084" />
-            <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {activeVoiceMeta ? activeVoiceMeta.name : 'Select Voice'}
-            </span>
-          </div>
-          <ChevronRight size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
-        </button>
-      </div>
-
-      {/* MAIN STUDIO LAYOUT (3-Column Desktop | Single-Column Mobile Card Flow) */}
-      <div className="studio-grid-3col">
-
-        {/* ── 1. LEFT COLUMN (Desktop): Languages Panel ── */}
-        <div className="studio-languages-panel desktop-only-panel">
-          <div className="studio-lang-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Globe size={18} color="#FF9933" />
-              <h2 style={{ fontSize: '1.02rem', fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
-                Languages
-              </h2>
-            </div>
-            <span className="badge badge-saffron" style={{ fontSize: '0.66rem', padding: '2px 7px' }}>
-              {INDIAN_LANGUAGES.length}
-            </span>
-          </div>
-
-          {/* Search Box */}
-          <div className="studio-lang-search-wrapper">
-            <Search size={14} className="studio-lang-search-icon" />
-            <input
-              type="text"
-              placeholder="Search languages..."
-              value={searchLangQuery}
-              onChange={(e) => setSearchLangQuery(e.target.value)}
-              className="studio-lang-search-input"
-              aria-label="Search languages"
-            />
-          </div>
-
-          {/* Vertical Scrollable Language List */}
-          <div className="studio-lang-list">
-            {filteredLanguages.length > 0 ? (
-              filteredLanguages.map((lang) => {
-                const isSelected = selectedLang === lang.code;
-                return (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => {
-                      stopVoice();
-                      setSelectedLang(lang.code);
-                    }}
-                    className={`studio-lang-item ${isSelected ? 'active' : ''}`}
-                    title={`${lang.name} (${lang.nativeName})`}
-                  >
-                    <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontWeight: isSelected ? 600 : 500 }}>{lang.name}</span>
-                      {lang.nativeName && (
-                        <span style={{ fontSize: '0.74rem', opacity: 0.65, marginLeft: '6px' }}>
-                          {lang.nativeName}
-                        </span>
-                      )}
-                    </div>
-                    {isSelected && (
-                      <Check size={15} className="lang-check-icon" style={{ flexShrink: 0, marginLeft: '6px' }} />
-                    )}
-                  </button>
-                );
-              })
-            ) : (
-              <div style={{ padding: '16px 8px', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                No language found
-              </div>
-            )}
-          </div>
+      {/* ═══════════════════════════════════════════════════════
+          LEFT SIDEBAR NAVIGATION (DESKTOP)
+          ═══════════════════════════════════════════════════════ */}
+      <aside className="ref-sidebar">
+        {/* Top Logo */}
+        <div className="ref-sidebar-logo">
+          <SoundwaveIcon color="#F0F6FC" size={24} />
+          <span className="ref-logo-title">AI VOICE INDIA</span>
         </div>
 
-        {/* ── 2. CENTER & PRIMARY COLUMN: Text Editor & Controls & Output ── */}
-        <div className="studio-center-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0, width: '100%' }}>
+        {/* Search */}
+        <nav className="ref-sidebar-menu">
+          <button
+            onClick={() => {
+              setActiveMenuTab('home');
+              setActiveModal(null);
+              setShowLangDropdown(true);
+            }}
+            className={`ref-menu-btn ${showLangDropdown ? 'active-black' : ''}`}
+          >
+            <Search size={18} />
+            <span>Search</span>
+          </button>
 
-          {/* CARD 1: Text Input */}
-          <div className="glass-card studio-card text-input-card">
-            <div className="text-card-header" style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '12px',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                <Edit3 size={17} color="var(--saffron-primary)" style={{ flexShrink: 0 }} />
-                <h2 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  1. Enter Your Text ({currentLangObj.name})
-                </h2>
-              </div>
+          {/* ── Divider ── */}
+          <div className="ref-sidebar-divider" />
 
-              {/* Action buttons (Copy & Clear compact) */}
-              <div className="text-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <button
-                  onClick={handleCopy}
-                  className="btn-secondary btn-compact"
-                  title="Copy text"
-                >
-                  {copied ? <Check size={13} color="#00D084" /> : <Copy size={13} />}
-                  <span>{copied ? 'Copied' : 'Copy'}</span>
+          {/* ── Main Menu ── */}
+          <button
+            onClick={() => {
+              setActiveMenuTab('home');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'home' && !activeModal && !showLangDropdown ? 'active-black' : ''}`}
+          >
+            <Home size={18} />
+            <span>Home</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenuTab('pdf');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'pdf' && !activeModal ? 'active-black' : ''}`}
+          >
+            <FileText size={18} />
+            <span>PDF to Voice</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (setActiveTab) setActiveTab('pricing');
+              else setActiveModal('pricing');
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeModal === 'pricing' ? 'active-black' : ''}`}
+          >
+            <Crown size={18} />
+            <span>Upgrade</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveModal('api');
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeModal === 'api' ? 'active-black' : ''}`}
+          >
+            <Code size={18} />
+            <span>API Access</span>
+          </button>
+
+          {/* ── Divider ── */}
+          <div className="ref-sidebar-divider" />
+
+          {/* ── AI Tools ── */}
+          <span className="ref-sidebar-section-label">AI Tools</span>
+
+          <button
+            onClick={() => {
+              setActiveMenuTab('ai-assistant');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'ai-assistant' && !activeModal ? 'active-black' : ''}`}
+          >
+            <Sparkles size={18} />
+            <span>AI Assistant</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenuTab('voice-effects');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'voice-effects' && !activeModal ? 'active-black' : ''}`}
+          >
+            <Wand2 size={18} />
+            <span>Voice Effects</span>
+          </button>
+
+          {/* ── Divider ── */}
+          <div className="ref-sidebar-divider" />
+
+          {/* ── Bottom Menu ── */}
+          <button
+            onClick={() => {
+              setActiveModal('creations');
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeModal === 'creations' ? 'active-black' : ''}`}
+          >
+            <Clock size={18} />
+            <span>History</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenuTab('help');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'help' && !activeModal ? 'active-black' : ''}`}
+          >
+            <Headphones size={18} />
+            <span>Help & Support</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveMenuTab('settings');
+              setActiveModal(null);
+              setShowLangDropdown(false);
+            }}
+            className={`ref-menu-btn ${activeMenuTab === 'settings' && !activeModal ? 'active-black' : ''}`}
+          >
+            <Settings size={18} />
+            <span>Settings</span>
+          </button>
+        </nav>
+      </aside>
+
+      {/* ═══════════════════════════════════════════════════════
+          MAIN DASHBOARD WORKSPACE (RIGHT SIDE)
+          ═══════════════════════════════════════════════════════ */}
+      <main className="ref-main-workspace">
+        
+        {/* Top Header: Sign Out button on Top Right */}
+        <header className="ref-top-header">
+          {/* Mobile hamburger menu toggle */}
+          <button
+            className="ref-hamburger-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Menu"
+          >
+            {mobileMenuOpen ? <X size={20} color="#F0F6FC" /> : <Menu size={20} color="#F0F6FC" />}
+          </button>
+
+          <button onClick={handleSignOut} className="ref-btn-signout" id="dashboard-signout-btn">
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
+        </header>
+
+        {/* Mobile Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="ref-mobile-drawer" onClick={() => setMobileMenuOpen(false)}>
+            <div onClick={(e) => e.stopPropagation()} style={{ height: '100%' }}>
+              <nav className="ref-sidebar-menu">
+                <button onClick={() => { setActiveMenuTab('home'); setActiveModal(null); setShowLangDropdown(true); setMobileMenuOpen(false); }} className={`ref-menu-btn ${showLangDropdown ? 'active-black' : ''}`}>
+                  <Search size={18} /><span>Search</span>
                 </button>
-                <button
-                  onClick={handleClear}
-                  className="btn-secondary btn-compact"
-                  title="Clear text"
-                >
-                  <Trash2 size={13} />
-                  <span>Clear</span>
+                <div className="ref-sidebar-divider" />
+                <button onClick={() => { setActiveMenuTab('home'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'home' && !activeModal && !showLangDropdown ? 'active-black' : ''}`}>
+                  <Home size={18} /><span>Home</span>
                 </button>
-              </div>
+                <button onClick={() => { setActiveMenuTab('pdf'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'pdf' && !activeModal ? 'active-black' : ''}`}>
+                  <FileText size={18} /><span>PDF to Voice</span>
+                </button>
+                <button onClick={() => { if (setActiveTab) setActiveTab('pricing'); else setActiveModal('pricing'); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeModal === 'pricing' ? 'active-black' : ''}`}>
+                  <Crown size={18} /><span>Upgrade</span>
+                </button>
+                <button onClick={() => { setActiveModal('api'); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeModal === 'api' ? 'active-black' : ''}`}>
+                  <Code size={18} /><span>API Access</span>
+                </button>
+                <div className="ref-sidebar-divider" />
+                <span className="ref-sidebar-section-label">AI Tools</span>
+                <button onClick={() => { setActiveMenuTab('ai-assistant'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'ai-assistant' && !activeModal ? 'active-black' : ''}`}>
+                  <Sparkles size={18} /><span>AI Assistant</span>
+                </button>
+                <button onClick={() => { setActiveMenuTab('voice-effects'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'voice-effects' && !activeModal ? 'active-black' : ''}`}>
+                  <Wand2 size={18} /><span>Voice Effects</span>
+                </button>
+                <div className="ref-sidebar-divider" />
+                <button onClick={() => { setActiveModal('creations'); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeModal === 'creations' ? 'active-black' : ''}`}>
+                  <Clock size={18} /><span>History</span>
+                </button>
+                <button onClick={() => { setActiveMenuTab('help'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'help' && !activeModal ? 'active-black' : ''}`}>
+                  <Headphones size={18} /><span>Help & Support</span>
+                </button>
+                <button onClick={() => { setActiveMenuTab('settings'); setActiveModal(null); setShowLangDropdown(false); setMobileMenuOpen(false); }} className={`ref-menu-btn ${activeMenuTab === 'settings' && !activeModal ? 'active-black' : ''}`}>
+                  <Settings size={18} /><span>Settings</span>
+                </button>
+              </nav>
             </div>
-
-            {/* Unicode Textarea */}
-            <div className="textarea-wrapper" style={{ position: 'relative' }}>
-              <textarea
-                id="studio-textarea"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={`Enter your ${currentLangObj.name} text here...`}
-                rows={6}
-                maxLength={5000}
-                className="studio-textarea"
-              />
-              {/* Character Limit Counter Display */}
-              <div className="char-counter-bottom-right">
-                <span style={{ color: charCount > 5000 ? '#ef4444' : 'var(--text-muted)' }}>
-                  {charCount} / 5000
-                </span>
-              </div>
-            </div>
-
-            {/* Sample Prompts for this Language (if available) */}
-            {currentLangObj?.prompts && currentLangObj.prompts.length > 0 && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  Quick Samples ({currentLangObj.nativeName}):
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {currentLangObj.prompts.map((p, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setText(p)}
-                      className="btn-secondary btn-sample-chip"
-                    >
-                      {idx === 0 ? '👋 Welcome Greeting' : idx === 1 ? '🎥 Video Script' : idx === 2 ? '🎧 Support' : '📖 Story'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+        )}
 
-          {/* CARD 2 (Mobile Flow): Speech Controls */}
-          <div className="glass-card studio-card speech-controls-card">
-            <div className="speech-controls-header" style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sliders size={17} color="#FFA333" />
-                <h2 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  2. Speech Controls
-                </h2>
-              </div>
-              <button
-                onClick={handleResetSettings}
-                className="btn-secondary btn-compact"
-                title="Reset to default pitch and speed"
-              >
-                <RotateCcw size={12} />
-                <span>Reset</span>
-              </button>
-            </div>
-
-            <div className="sliders-container" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-              {/* Speed Slider */}
-              <div className="slider-group">
-                <div className="slider-label-row">
-                  <span className="slider-label-title">
-                    Speech Speed <Info size={13} style={{ opacity: 0.6 }} />
-                  </span>
-                </div>
-                <div className="slider-input-wrapper">
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.05"
-                    value={speed}
-                    onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                    aria-label="Speech Speed"
-                    className="touch-slider"
-                  />
-                </div>
-                <div className="slider-value-display">
-                  <div className="slider-val-primary">{speed.toFixed(1)}x</div>
-                  <div className="slider-val-sub">{getSpeedLabel(speed)}</div>
-                </div>
-              </div>
-
-              {/* Pitch Slider */}
-              <div className="slider-group">
-                <div className="slider-label-row">
-                  <span className="slider-label-title">
-                    Pitch <Info size={13} style={{ opacity: 0.6 }} />
-                  </span>
-                </div>
-                <div className="slider-input-wrapper">
-                  <input
-                    type="range"
-                    min="-0.5"
-                    max="0.5"
-                    step="0.05"
-                    value={pitch}
-                    onChange={(e) => setPitch(parseFloat(e.target.value))}
-                    aria-label="Voice Pitch"
-                    className="touch-slider"
-                  />
-                </div>
-                <div className="slider-value-display">
-                  <div className="slider-val-primary">{pitch === 0 ? '0' : (pitch > 0 ? `+${pitch.toFixed(1)}` : pitch.toFixed(1))}</div>
-                  <div className="slider-val-sub">{getPitchLabel(pitch)}</div>
-                </div>
-              </div>
-
-              {/* Speaking Style Selector (Collapsible / Compact) */}
-              <div className="style-selector-row">
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-                  Speaking Style &amp; Emotion
-                </label>
-                <select
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  style={{ width: '100%', fontSize: '0.84rem' }}
-                >
-                  {VOICE_STYLES.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.name} ({st.description})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Text Normalization Toggle */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-subtle)',
-                marginTop: '-4px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Indian Text Normalization
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    Auto-expand ₹, Lakhs, Crores, dates
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={enableNormalization}
-                  onChange={(e) => setEnableNormalization(e.target.checked)}
-                  style={{ width: '17px', height: '17px', accentColor: 'var(--saffron-primary)', cursor: 'pointer' }}
+        {activeMenuTab === 'pdf' ? (
+          <PdfToVoiceView
+            voices={voices}
+            selectedLang={selectedLang}
+            setSelectedLang={setSelectedLang}
+            availableLanguages={availableLanguages}
+            currentLangObj={currentLangObj}
+            combinedVoiceList={combinedVoiceList}
+            activeVoiceMeta={activeVoiceMeta}
+            selectedVoiceId={selectedVoiceId}
+            setSelectedVoiceId={setSelectedVoiceId}
+            speed={speed}
+            setSpeed={setSpeed}
+            pitch={pitch}
+            setPitch={setPitch}
+            token={token}
+            user={user}
+            updateUser={updateUser}
+            onOpenUpgrade={onOpenUpgrade}
+            setShowUpgradeModal={setShowUpgradeModal}
+          />
+        ) : activeMenuTab === 'ai-assistant' ? (
+          <AiAssistantView
+            token={token}
+            user={user}
+            onGenerateVoiceForText={(aiText) => {
+              setText(aiText);
+              setActiveMenuTab('home');
+              setActiveModal(null);
+            }}
+          />
+        ) : activeMenuTab === 'voice-effects' ? (
+          <VoiceEffectsView
+            inputAudioUrl={generationResult?.audio_url}
+            generationResult={generationResult}
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
+        ) : activeMenuTab === 'help' ? (
+          <HelpSupportView
+            user={user}
+            token={token}
+          />
+        ) : activeMenuTab === 'settings' ? (
+          <SettingsView
+            user={user}
+            token={token}
+            onOpenUpgrade={onOpenUpgrade}
+            setActiveMenuTab={setActiveMenuTab}
+          />
+        ) : (
+          <>
+            {/* Center Hero Section */}
+            <section className="ref-hero-section">
+              {/* Peacock Logo with Blue Glow */}
+              <div className="ref-hero-logo-wrap">
+                <img
+                  src="/peacock-logo-transparent.png"
+                  alt="Peacock Logo"
+                  className="ref-hero-logo"
                 />
               </div>
 
-              {/* GENERATE BUTTON (Full width, bold, high touch height) */}
-              <button
-                id="btn-generate-voice"
-                onClick={handleGenerate}
-                disabled={isGenerating || !text.trim()}
-                className="btn-generate-voice-main"
-                title="Generate Indian AI Voice Speech"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw size={18} className="spin-animation" />
-                    <span>Synthesizing Voice...</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="btn-soundwave-icon">
-                      <span></span><span></span><span></span><span></span>
+              {/* Heading */}
+              <h1 className="ref-hero-heading">
+                <span className="hero-text-white">Create something </span>
+                <span className="hero-text-blue">new today</span>
+              </h1>
+
+              {/* Subtitle */}
+              <p className="ref-hero-subtitle-new">
+                Ask any question, generate voiceover scripts, or choose an example prompt below.
+              </p>
+
+              {/* Four Example Prompt Cards */}
+              <div className="ref-ai-prompts-grid" style={{ marginTop: '32px', width: '100%', maxWidth: '720px' }}>
+                {EXAMPLE_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setText(prompt.sampleText || prompt.title)}
+                    className="ref-ai-prompt-card"
+                  >
+                    <div className="ref-ai-prompt-top">
+                      <span className="ref-ai-prompt-title">{prompt.title}</span>
+                      <ArrowRight size={15} color="#8B949E" className="ref-ai-prompt-arrow" />
                     </div>
-                    <span>Generate Voice</span>
-                  </>
-                )}
-              </button>
-
-            </div>
-          </div>
-
-          {/* Error Alert if any */}
-          {errorMessage && (
-            <div className="studio-error-banner" style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '10px',
-              fontSize: '0.86rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertCircle size={17} color="#EF4444" style={{ flexShrink: 0 }} />
-                <span>{errorMessage}</span>
+                    <span className="ref-ai-prompt-desc">{prompt.desc}</span>
+                  </button>
+                ))}
               </div>
-              {isZeroRemaining && (
-                <button
-                  onClick={() => onOpenUpgrade ? onOpenUpgrade() : setShowUpgradeModal(true)}
-                  style={{
-                    background: '#FF8A00',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '5px 10px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    flexShrink: 0
-                  }}
-                >
-                  Upgrade
-                </button>
-              )}
-            </div>
-          )}
+            </section>
 
-          {/* CARD 3: Generated Voice Output */}
-          <div className="glass-card studio-card generated-voice-card">
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Volume2 size={17} color="var(--emerald-primary)" />
-                <h2 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  3. Generated Voice
-                </h2>
-              </div>
 
-              {/* Download Button on Top Right */}
-              {generationResult && generationResult.audio_url ? (
-                <a
-                  href={generationResult.audio_url}
-                  download={generationResult.filename || 'ai-voice-india.mp3'}
-                  className="download-icon-btn active"
-                  title="Download MP3 Audio"
-                  aria-label="Download Audio"
-                >
-                  <Download size={16} />
-                </a>
-              ) : (
-                <div
-                  className="download-icon-btn disabled"
-                  title="Generate audio first to download"
-                >
-                  <Download size={16} />
-                </div>
-              )}
-            </div>
+            {/* Workspace 2-Column Grid */}
+            <div className="ref-workspace-grid">
+              
+              {/* Row 1, Column 1: Language & Voice Selectors (exact same width as text editor) */}
+              <div className="sel-row">
 
-            {/* If audio generated, show the full playable audio player */}
-            {generationResult && generationResult.success ? (
-              <AudioPlayer
-                audioUrl={generationResult.audio_url}
-                filename={generationResult.filename}
-                voiceMeta={activeVoiceMeta}
-                characterCount={generationResult.character_count}
-                providerUsed={generationResult.provider}
-                generationTime={generationResult.generation_time_sec}
-              />
-            ) : (
-              /* Idle Waveform Placeholder State (Matches Reference Mock) */
-              <div className="generated-voice-placeholder">
-                <div className="placeholder-waveform">
-                  <span className="dash"></span>
-                  <span className="dash"></span>
-                  <span className="dash"></span>
-                  <span className="peak peak-1"></span>
-                  <span className="peak peak-2"></span>
-                  <span className="peak peak-3"></span>
-                  <span className="peak peak-2"></span>
-                  <span className="dash"></span>
-                  <span className="dash"></span>
-                  <span className="peak peak-1"></span>
-                  <span className="peak peak-3"></span>
-                  <span className="peak peak-2"></span>
-                  <span className="peak peak-1"></span>
-                  <span className="dash"></span>
-                  <span className="dash"></span>
-                  <span className="dash"></span>
-                </div>
-                <p className="placeholder-text">
-                  Your generated voice will appear here
-                </p>
-              </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* ── 3. RIGHT COLUMN (Desktop): Voice Library & Voice Details ── */}
-        <div className="studio-voices-panel desktop-only-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0, width: '100%' }}>
-
-          <div className="glass-card studio-card" style={{ padding: '18px' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '14px',
-              flexWrap: 'wrap',
-              gap: '8px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Volume2 size={18} color="#00D084" />
-                <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Voice Selection ({combinedVoiceList.length})
-                </h2>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button
-                  onClick={refreshVoices}
-                  className="btn-secondary btn-compact"
-                  title="Refresh device and browser voices"
-                >
-                  <RefreshCw size={12} />
-                  <span>Refresh</span>
-                </button>
-                <span className="badge badge-emerald" style={{ fontSize: '0.66rem' }}>
-                  {currentLangObj.bcp47 || currentLangObj.code}
-                </span>
-              </div>
-            </div>
-
-            {/* Currently Active Voice */}
-            {activeVoiceMeta && (
-              <div style={{
-                background: 'linear-gradient(90deg, rgba(255, 138, 0, 0.1) 0%, var(--bg-card) 100%)',
-                border: '1px solid rgba(255, 138, 0, 0.35)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '10px 12px',
-                marginBottom: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '8px'
-              }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--saffron-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                    Active Voice
+                {/* ── Language Selector ── */}
+                <div className="sel-group ref-dropdown-wrapper">
+                  <div className="sel-label">
+                    <Globe size={14} color="#8B949E" />
+                    <span>Language</span>
                   </div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {activeVoiceMeta.name}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    {activeVoiceMeta.style || 'Natural Regional'} • {activeVoiceMeta.region || 'India'}
-                  </div>
-                </div>
+                  <button
+                    type="button"
+                    className={`sel-trigger ${!hasSelectedLang ? 'sel-trigger-placeholder' : ''}`}
+                    id="dropdown-language-btn"
+                    onClick={() => {
+                      setShowLangDropdown(!showLangDropdown);
+                      setShowVoiceDropdown(false);
+                    }}
+                  >
+                    <span className="sel-trigger-value">
+                      {hasSelectedLang
+                        ? getCleanLangName(currentLangObj)
+                        : 'Select Language'}
+                    </span>
+                    <ChevronDown size={16} className="sel-trigger-chevron" />
+                  </button>
 
-                <button
-                  onClick={(e) => handlePreview(activeVoiceMeta, e)}
-                  className="btn-secondary btn-compact"
-                  style={{
-                    background: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.2)',
-                    borderColor: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.4)',
-                    color: isSpeaking && previewingVoiceId === activeVoiceMeta.id ? '#ef4444' : '#FF8A00'
-                  }}
-                >
-                  {isSpeaking && previewingVoiceId === activeVoiceMeta.id ? (
-                    <Square size={11} fill="#EF4444" />
-                  ) : (
-                    <Play size={11} fill="#FFA333" />
+                  {showLangDropdown && (
+                    <div className="ref-dropdown-popup">
+                      <div className="ref-popup-search">
+                        <Search size={14} color="#8B949E" />
+                        <input
+                          type="text"
+                          placeholder="Search language..."
+                          value={searchLangQuery}
+                          onChange={(e) => setSearchLangQuery(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="ref-popup-scroll">
+                        {filteredLanguages.map(l => (
+                          <button
+                            key={l.code}
+                            className={`ref-popup-item ${selectedLang === l.code && hasSelectedLang ? 'selected' : ''}`}
+                            onClick={() => {
+                              if (setSelectedLang) setSelectedLang(l.code);
+                              setHasSelectedLang(true);
+                              setHasSelectedVoice(false);
+                              setSelectedVoiceId('');
+                              setShowLangDropdown(false);
+                            }}
+                          >
+                            <span style={{ fontWeight: 600 }}>{getCleanLangName(l)}</span>
+                            {selectedLang === l.code && hasSelectedLang && <Check size={14} color="#2F81F7" style={{ marginLeft: 'auto' }} />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  <span>{isSpeaking && previewingVoiceId === activeVoiceMeta.id ? 'Stop' : 'Preview'}</span>
-                </button>
-              </div>
-            )}
-
-            {/* Real Voice Cards Scroll List */}
-            <div className="voice-cards-scroll">
-              {combinedVoiceList.length > 0 ? (
-                combinedVoiceList.map((voice) => {
-                  const isSelected = selectedVoiceId === voice.id;
-                  const isThisSpeaking = isSpeaking && previewingVoiceId === voice.id;
-
-                  return (
-                    <div
-                      key={voice.id}
-                      onClick={() => setSelectedVoiceId(voice.id)}
-                      className={`glass-card ${isSelected ? '' : 'glass-card-interactive'}`}
-                      style={{
-                        padding: '10px 12px',
-                        background: isSelected
-                          ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.12) 0%, var(--bg-card) 100%)'
-                          : 'var(--bg-card)',
-                        border: isSelected
-                          ? '1px solid rgba(255, 138, 0, 0.5)'
-                          : '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                        cursor: 'pointer',
-                        transition: 'all 0.18s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                          <span style={{ fontWeight: 600, color: isSelected ? '#FF8A00' : 'var(--text-primary)', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {voice.name}
-                          </span>
-                          {voice.gender && (
-                            <span className={`badge ${voice.gender === 'Female' ? 'badge-saffron' : 'badge-cyan'}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                              {voice.gender}
-                            </span>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={(e) => handlePreview(voice, e)}
-                          className="btn-secondary btn-compact"
-                          style={{
-                            padding: '3px 6px',
-                            fontSize: '0.7rem',
-                            background: isThisSpeaking ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.15)',
-                            borderColor: isThisSpeaking ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.3)',
-                            color: isThisSpeaking ? '#ef4444' : '#FF8A00'
-                          }}
-                        >
-                          {isThisSpeaking ? <Square size={10} fill="#EF4444" /> : <Play size={10} fill="#FFA333" />}
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        <span>{voice.style || 'Natural'} • {voice.region || 'India'}</span>
-                        <span style={{ fontSize: '0.68rem', color: voice.isNativeDeviceVoice ? '#00D084' : 'var(--text-muted)' }}>
-                          {voice.isNativeDeviceVoice ? '⚡ Native' : 'Cloud'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                  No voices loaded for {currentLangObj.name}.
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
 
-      </div>
-
-      {/* ── MOBILE LANGUAGE BOTTOM SHEET / MODAL ── */}
-      {showMobileLangModal && (
-        <div className="mobile-modal-overlay" onClick={() => setShowMobileLangModal(false)}>
-          <div className="mobile-modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Globe size={18} color="var(--saffron-primary)" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Select Language ({INDIAN_LANGUAGES.length})
-                </h3>
-              </div>
-              <button
-                className="mobile-modal-close"
-                onClick={() => setShowMobileLangModal(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ padding: '12px 16px 0 16px' }}>
-              <div className="studio-lang-search-wrapper" style={{ marginBottom: '8px' }}>
-                <Search size={14} className="studio-lang-search-icon" />
-                <input
-                  type="text"
-                  placeholder="Search 20+ Indian Languages..."
-                  value={searchLangQuery}
-                  onChange={(e) => setSearchLangQuery(e.target.value)}
-                  className="studio-lang-search-input"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className="mobile-modal-list">
-              {filteredLanguages.map((lang) => {
-                const isSelected = selectedLang === lang.code;
-                return (
+                {/* ── Voice Selector ── */}
+                <div className="sel-group ref-dropdown-wrapper">
+                  <div className="sel-label">
+                    <Mic size={14} color="#8B949E" />
+                    <span>Voice</span>
+                  </div>
                   <button
-                    key={lang.code}
                     type="button"
+                    className={`sel-trigger ${!hasSelectedVoice ? 'sel-trigger-placeholder' : ''}`}
+                    id="dropdown-voice-btn"
                     onClick={() => {
-                      stopVoice();
-                      setSelectedLang(lang.code);
-                      setShowMobileLangModal(false);
+                      setShowVoiceDropdown(!showVoiceDropdown);
+                      setShowLangDropdown(false);
                     }}
-                    className={`mobile-lang-row ${isSelected ? 'active' : ''}`}
                   >
-                    <div>
-                      <div style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.92rem', color: isSelected ? 'var(--saffron-primary)' : 'var(--text-primary)' }}>
-                        {lang.name}
+                    <span className="sel-trigger-value">
+                      {hasSelectedVoice && activeVoiceMeta && activeVoiceMeta.name
+                        ? getCleanVoiceName(activeVoiceMeta)
+                        : (combinedVoiceList.length === 0 && hasSelectedLang ? 'No voice available' : 'Select Voice')}
+                    </span>
+                    <ChevronDown size={16} className="sel-trigger-chevron" />
+                  </button>
+
+                  {showVoiceDropdown && (
+                    <div className="ref-dropdown-popup">
+                      <div className="ref-popup-search">
+                        <Search size={14} color="#8B949E" />
+                        <input
+                          type="text"
+                          placeholder="Search voice..."
+                          value={searchVoiceQuery}
+                          onChange={(e) => setSearchVoiceQuery(e.target.value)}
+                          autoFocus
+                        />
                       </div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                        {lang.nativeName} • {lang.region}
+                      <div className="ref-popup-scroll">
+                        {filteredVoices.length > 0 ? (
+                          filteredVoices.map(v => (
+                            <button
+                              key={v.id || v.name}
+                              className={`ref-popup-item ${selectedVoiceId === v.id && hasSelectedVoice ? 'selected' : ''}`}
+                              onClick={() => {
+                                setSelectedVoiceId(v.id || '');
+                                setHasSelectedVoice(true);
+                                setShowVoiceDropdown(false);
+                              }}
+                            >
+                              <span style={{ fontWeight: 600 }}>{getCleanVoiceName(v)}</span>
+                              {selectedVoiceId === v.id && hasSelectedVoice && <Check size={14} color="#2F81F7" style={{ marginLeft: 'auto' }} />}
+                            </button>
+                          ))
+                        ) : (
+                          <div style={{ padding: '16px 14px', fontSize: '0.84rem', color: '#8B949E', textAlign: 'center', lineHeight: '1.5' }}>
+                            {searchVoiceQuery ? `No voices matching "${searchVoiceQuery}"` : `Native ${currentLangObj?.name || 'this language'} AI voice is currently under development.`}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {isSelected && (
-                      <Check size={18} color="var(--saffron-primary)" />
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── LEFT COLUMN (Text Input + Audio Player + Feedback) ── */}
+              <div className="ref-left-column">
+
+                {/* Card 1: Text Input Section Container */}
+                <div
+                  className={`ref-text-card ${isDragging ? 'dragging' : ''}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {/* Header Row: "Enter your text" title + Copy & Delete buttons */}
+                  <div className="ref-text-card-header">
+                    <span className="ref-text-card-title">Enter your text</span>
+                    <div className="ref-text-card-btns">
+                      <button
+                        type="button"
+                        onClick={handleCopyText}
+                        className="ref-tcbtn"
+                        title="Copy text"
+                      >
+                        {copiedText ? <Check size={15} color="#3fb950" /> : <Copy size={15} color="#C9D1D9" />}
+                        <span>{copiedText ? 'Copied' : 'Copy'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteText}
+                        className="ref-tcbtn"
+                        title="Delete text"
+                      >
+                        <Trash2 size={15} color="#C9D1D9" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Four Quick Prompt Chips */}
+                  <div className="ref-prompt-chips">
+                    {['YouTube Script', 'Podcast', 'Story', 'Announcement'].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        className="ref-chip"
+                        onClick={() => handleChipClick(chip)}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Textarea */}
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value.slice(0, 1000))}
+                    placeholder="Type or paste your text here..."
+                    maxLength={1000}
+                    className="ref-textarea"
+                    id="dashboard-textarea"
+                  />
+
+                  {/* Character counter bottom-right */}
+                  <div className="ref-text-card-footer">
+                    <span className="ref-char-counter">{charCount} / 1000</span>
+                  </div>
+                </div>
+
+                {/* Error Banner */}
+                {errorMessage && (
+                  <div className="ref-error-banner">
+                    <AlertCircle size={16} color="#f87171" />
+                    <span>{errorMessage}</span>
+                    <X size={14} style={{ cursor: 'pointer', marginLeft: 'auto' }} onClick={() => setErrorMessage('')} />
+                  </div>
+                )}
+
+                {/* Card 2: Generated Audio Player Bar */}
+                <AudioPlayer
+                  audioUrl={generationResult?.audio_url}
+                  filename={generationResult?.filename}
+                  onSaveVoice={handleSaveVoice}
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                />
+
+                {/* Card 3: Feedback / Rating Section */}
+                <div className="ref-card ref-feedback-card">
+                  {!feedbackSubmitted ? (
+                    <>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#F0F6FC', marginBottom: '16px', letterSpacing: '-0.01em' }}>
+                        Rate your experience
+                      </h3>
+
+                      {/* 5 Star Rating Row */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          marginBottom: '20px',
+                          width: '100%'
+                        }}
+                        onMouseLeave={() => setHoverRating(0)}
+                      >
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const active = star <= (hoverRating || rating);
+                          return (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => {
+                                setRating(star);
+                                setFeedbackError('');
+                              }}
+                              onMouseEnter={() => setHoverRating(star)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: '4px',
+                                cursor: 'pointer',
+                                transition: 'transform 0.15s ease',
+                                transform: active ? 'scale(1.15)' : 'scale(1.0)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                            >
+                              <Star
+                                size={30}
+                                color={active ? '#2F81F7' : '#30363D'}
+                                fill={active ? '#2F81F7' : 'none'}
+                                strokeWidth={1.6}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {feedbackError && (
+                        <div style={{ fontSize: '0.82rem', color: '#f87171', marginBottom: '12px', fontWeight: 500 }}>
+                          {feedbackError}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (rating === 0) {
+                            setFeedbackError('Please select a star rating first.');
+                            return;
+                          }
+                          setFeedbackError('');
+                          setFeedbackSubmitted(true);
+                        }}
+                        className="ref-feedback-submit-btn"
+                      >
+                        Submit Feedback
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px 0', width: '100%', textAlign: 'center' }}>
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '50%',
+                        background: 'rgba(47, 129, 247, 0.15)',
+                        border: '1px solid #2F81F7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 12px'
+                      }}>
+                        <Check size={22} color="#2F81F7" />
+                      </div>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#F0F6FC', marginBottom: '6px' }}>
+                        Thank you for your feedback!
+                      </h4>
+                      <p style={{ fontSize: '0.86rem', color: '#8B949E', margin: 0 }}>
+                        We appreciate your input to make AI Voice India even better.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFeedbackSubmitted(false);
+                          setRating(0);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#8B949E',
+                          fontSize: '0.78rem',
+                          marginTop: '14px',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Submit another rating
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── RIGHT COLUMN: Voice Control Panel ── */}
+              <div className="ref-right-column">
+                <div className="ref-card ref-voice-control-card">
+                  <h2 className="ref-voice-control-title">Voice control</h2>
+
+                  {/* Speed Slider */}
+                  <div className="ref-slider-group">
+                    <div className="ref-slider-meta">
+                      <span>Speed</span>
+                      <span className="ref-slider-value">{speed.toFixed(1)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5.0"
+                      step="0.1"
+                      value={speed}
+                      onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                      className="ref-black-slider"
+                      aria-label="Speed slider"
+                    />
+                    <div className="ref-slider-limits">
+                      <span>0.5x</span>
+                      <span>5x</span>
+                    </div>
+                  </div>
+
+                  {/* Pitch Slider */}
+                  <div className="ref-slider-group">
+                    <div className="ref-slider-meta">
+                      <span>Pitch</span>
+                      <span className="ref-slider-value">{pitch.toFixed(1)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="5.0"
+                      step="0.1"
+                      value={pitch}
+                      onChange={(e) => setPitch(parseFloat(e.target.value))}
+                      className="ref-black-slider"
+                      aria-label="Pitch slider"
+                    />
+                    <div className="ref-slider-limits">
+                      <span>0.5x</span>
+                      <span>5x</span>
+                    </div>
+                  </div>
+
+                  {/* Volume Slider */}
+                  <div className="ref-slider-group">
+                    <div className="ref-slider-meta">
+                      <span>Volume</span>
+                      <span className="ref-slider-value">{volume}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={volume}
+                      onChange={(e) => setVolume(parseInt(e.target.value))}
+                      className="ref-black-slider"
+                      aria-label="Volume slider"
+                    />
+                    <div className="ref-slider-limits">
+                      <span>0%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+
+                  {/* Large Primary Generate Button with Waveform Icon */}
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={isGenerating || !text.trim()}
+                    className="ref-btn-generate-blue"
+                    id="btn-generate-voice"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw size={18} className="spin-animation" color="#FFFFFF" />
+                        <span>Generating Speech...</span>
+                      </>
+                    ) : (
+                      <>
+                        <SoundwaveIcon color="#FFFFFF" size={20} />
+                        <span>Generate Voice</span>
+                      </>
                     )}
                   </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* ── MOBILE VOICE BOTTOM SHEET / MODAL ── */}
-      {showMobileVoiceModal && (
-        <div className="mobile-modal-overlay" onClick={() => setShowMobileVoiceModal(false)}>
-          <div className="mobile-modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Volume2 size={18} color="#00D084" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Select Voice for {currentLangObj.name}
-                </h3>
+                </div>
               </div>
-              <button
-                className="mobile-modal-close"
-                onClick={() => setShowMobileVoiceModal(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
+
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* ═══════════════════════════════════════════════════════
+          FEATURE MODALS (Creations, API Access, About, Help)
+          ═══════════════════════════════════════════════════════ */}
+      {activeModal && (
+        <div className="ref-modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="ref-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="ref-modal-header">
+              <h3>
+                {activeModal === 'creations' && 'My Audio Creations'}
+                {activeModal === 'api' && 'AI Voice India API Access'}
+                {activeModal === 'about' && 'About AI Voice India'}
+                {activeModal === 'help' && 'Help and Support'}
+                {activeModal === 'pricing' && 'Plans & Pricing'}
+              </h3>
+              <button onClick={() => setActiveModal(null)} className="ref-modal-close"><X size={18} color="#8B949E" /></button>
             </div>
 
-            <div className="mobile-modal-list" style={{ maxHeight: '60vh', padding: '12px 16px' }}>
-              {combinedVoiceList.length > 0 ? (
-                combinedVoiceList.map((voice) => {
-                  const isSelected = selectedVoiceId === voice.id;
-                  const isThisSpeaking = isSpeaking && previewingVoiceId === voice.id;
-
-                  return (
-                    <div
-                      key={voice.id}
-                      onClick={() => {
-                        setSelectedVoiceId(voice.id);
-                        setShowMobileVoiceModal(false);
-                      }}
-                      className={`mobile-voice-row ${isSelected ? 'active' : ''}`}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: isSelected ? 700 : 600, color: isSelected ? 'var(--saffron-primary)' : 'var(--text-primary)', fontSize: '0.92rem' }}>
-                            {voice.name}
-                          </span>
-                          {voice.gender && (
-                            <span className={`badge ${voice.gender === 'Female' ? 'badge-saffron' : 'badge-cyan'}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                              {voice.gender}
-                            </span>
-                          )}
+            <div className="ref-modal-body">
+              {activeModal === 'creations' && (
+                <div>
+                  {creationsHistory.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {creationsHistory.map(item => (
+                        <div key={item.id} style={{ padding: '12px', background: '#0D1117', borderRadius: '10px', border: '1px solid #30363D' }}>
+                          <div style={{ fontWeight: 600, color: '#F0F6FC', marginBottom: '4px' }}>{item.text}</div>
+                          <div style={{ fontSize: '0.78rem', color: '#8B949E', display: 'flex', gap: '12px' }}>
+                            <span>🌐 {item.language}</span>
+                            <span>🎙️ {item.voice}</span>
+                            <span>🕒 {item.date}</span>
+                          </div>
+                          <audio src={item.audio_url} controls style={{ width: '100%', marginTop: '8px', height: '32px' }} />
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                          {voice.style || 'Natural'} • {voice.isNativeDeviceVoice ? '⚡ Native Device Voice' : 'Cloud Neural Voice'}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => handlePreview(voice, e)}
-                          className="btn-secondary btn-compact"
-                          style={{
-                            padding: '6px 10px',
-                            background: isThisSpeaking ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 138, 0, 0.15)',
-                            borderColor: isThisSpeaking ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 138, 0, 0.3)',
-                            color: isThisSpeaking ? '#ef4444' : '#FF8A00'
-                          }}
-                        >
-                          {isThisSpeaking ? <Square size={12} fill="#EF4444" /> : <Play size={12} fill="#FFA333" />}
-                          <span>{isThisSpeaking ? 'Stop' : 'Preview'}</span>
-                        </button>
-                        {isSelected && <Check size={18} color="var(--saffron-primary)" />}
-                      </div>
+                      ))}
                     </div>
-                  );
-                })
-              ) : (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No voices available for {currentLangObj.name}.
+                  ) : (
+                    <p style={{ color: '#8B949E', textAlign: 'center', padding: '24px' }}>No generated audio yet in this session. Click "Generate Voice" to create your first speech!</p>
+                  )}
+                </div>
+              )}
+
+              {activeModal === 'api' && (
+                <div style={{ fontSize: '0.9rem', color: '#8B949E' }}>
+                  <p style={{ marginBottom: '12px', color: '#F0F6FC' }}>Integrate AI Voice India directly into your applications using our high-speed REST API.</p>
+                  <pre style={{ background: '#0D1117', color: '#F0F6FC', border: '1px solid #30363D', padding: '12px', borderRadius: '8px', fontSize: '0.8rem', overflowX: 'auto' }}>
+{`POST /api/generate
+Header: Authorization: Bearer <your_jwt_token>
+Content-Type: application/json
+
+{
+  "text": "Namaste",
+  "language": "hi",
+  "voice_id": "hi-IN-Neural",
+  "speed": 1.0,
+  "pitch": 0.5
+}`}
+                  </pre>
+                </div>
+              )}
+
+              {activeModal === 'about' && (
+                <div style={{ fontSize: '0.9rem', color: '#8B949E', lineHeight: '1.6' }}>
+                  <p><strong style={{ color: '#F0F6FC' }}>AI VOICE INDIA</strong> is built specifically for Indian creators, businesses, and developers, supporting 22+ regional languages with natural pitch & speed modulation.</p>
+                </div>
+              )}
+
+              {activeModal === 'help' && (
+                <div style={{ fontSize: '0.9rem', color: '#8B949E' }}>
+                  <p style={{ marginBottom: '8px', color: '#F0F6FC' }}><strong>How to adjust speed & pitch?</strong></p>
+                  <p style={{ color: '#8B949E', marginBottom: '16px' }}>Use the Voice Control panel on the right sidebar to change speed (0.5x to 5x) and pitch (0.5x to 5x).</p>
+                  <p style={{ marginBottom: '8px', color: '#F0F6FC' }}><strong>Need custom voices or Enterprise plan?</strong></p>
+                  <p style={{ color: '#8B949E' }}>Contact our support team at support@aivoiceindia.in</p>
+                </div>
+              )}
+
+              {activeModal === 'pricing' && (
+                <div>
+                  <p style={{ marginBottom: '12px', color: '#8B949E' }}>Choose a plan that fits your creation needs:</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                    <div style={{ padding: '14px', border: '1px solid #30363D', background: '#0D1117', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#F0F6FC' }}>Free Plan</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '6px 0', color: '#2F81F7' }}>₹0</div>
+                      <div style={{ fontSize: '0.78rem', color: '#8B949E' }}>1,000 chars</div>
+                    </div>
+                    <div style={{ padding: '14px', border: '1px solid #30363D', background: '#0D1117', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, color: '#F0F6FC' }}>Pro Plan</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, margin: '6px 0', color: '#2F81F7' }}>₹129</div>
+                      <div style={{ fontSize: '0.78rem', color: '#8B949E' }}>20,000 chars</div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

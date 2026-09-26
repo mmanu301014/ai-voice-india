@@ -8,7 +8,7 @@ Updated according to platform specifications:
 """
 
 # ── Monthly Character Limit Config ──────────────────────────────────────────
-BASIC_MONTHLY_CHAR_LIMIT    = 200         # 200 characters / month
+BASIC_MONTHLY_CHAR_LIMIT    = 1_000       # 1,000 characters / month
 PRO_MONTHLY_CHAR_LIMIT      = 1_000       # 1,000 characters / month
 BUSINESS_MONTHLY_CHAR_LIMIT = 5_000       # 5,000 characters / month
 
@@ -28,15 +28,15 @@ PLANS = {
         "period": "/month",
         "billing_cycle": "Monthly",
         "daily_generation_limit": 50,
-        "max_characters_per_gen": 200,
+        "max_characters_per_gen": 1000,
         "monthly_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
         "total_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
         "badge": "MOST POPULAR",
         "accent": "orange",
         "description": "Ideal for getting started with AI Indian voices and personal projects.",
         "features": [
-            "200 characters/month",
-            "All 16 Indian languages & voices",
+            "1,000 characters/month",
+            "All Indian languages & voices",
             "Standard voice quality",
             "Email support"
         ]
@@ -50,15 +50,15 @@ PLANS = {
         "period": "/month",
         "billing_cycle": "Monthly",
         "daily_generation_limit": 50,
-        "max_characters_per_gen": 200,
+        "max_characters_per_gen": 1000,
         "monthly_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
         "total_character_limit": BASIC_MONTHLY_CHAR_LIMIT,
         "badge": "MOST POPULAR",
         "accent": "orange",
         "description": "Ideal for getting started with AI Indian voices and personal projects.",
         "features": [
-            "200 characters/month",
-            "All 16 Indian languages & voices",
+            "1,000 characters/month",
+            "All Indian languages & voices",
             "Standard voice quality",
             "Email support"
         ]

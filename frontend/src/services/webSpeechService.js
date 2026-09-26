@@ -42,14 +42,15 @@ const FEMALE_NAMES = [
 ];
 
 const MALE_NAMES = [
-  'male', 'david', 'mark', 'george', 'richard', 'ravi', 'hemant', 'madhur',
+  'male', 'david', 'mark', 'george', 'richard', 'ravi', 'hemant', 'hemanth', 'madhur',
   'gagan', 'manohar', 'valluvar', 'mohan', 'midhun', 'bashkar', 'niranjan',
   'gurpreet', 'salman', 'daniel', 'oliver', 'rishi', 'tarun', 'karthik', 'ajay',
   'arun', 'suresh', 'vijay', 'prabhat'
 ];
 
 /**
- * Detect gender from voice name if reliably identifiable
+ * Detect gender from voice name. Always returns 'Male' or 'Female' — never null.
+ * Defaults to 'Male' when the name is ambiguous.
  */
 export function detectVoiceGender(voiceName = '') {
   const nameLower = voiceName.toLowerCase();
@@ -59,8 +60,74 @@ export function detectVoiceGender(voiceName = '') {
   for (const m of MALE_NAMES) {
     if (nameLower.includes(m)) return 'Male';
   }
-  return null; // Omit if gender cannot be reliably determined
+  return 'Male'; // Default to Male when gender cannot be determined
 }
+
+/**
+ * Clean a raw OS voice name into a professional display name.
+ *
+ * Input examples:
+ *   "Microsoft Valluvar Online - Tamil (India)"
+ *   "Microsoft Hemanth - Hindi (India)"
+ *   "Google Tamil Online"
+ *   "Kalpana - Hindi (India)"
+ *   "Swara - Hindi (India)"
+ *
+ * Output format: "FirstName - Language"  e.g. "Valluvar - Tamil"
+ */
+/**
+ * Clean a raw OS voice name into a professional display name.
+ *
+ * Input examples:
+ *   "Microsoft Valluvar Online - Tamil (India)"
+ *   "Microsoft Hemanth - Hindi (India)"
+ *   "Google Tamil Online"
+ *   "Kalpana - Hindi (India)"
+ *   "Gagan (ಗಗನ್)"
+ *
+ * Output format: "FirstName - Language"  e.g. "Valluvar - Tamil"
+ */
+export function cleanVoiceName(rawName = '', langName = '') {
+  let name = (rawName || '').trim();
+
+  // 1. Remove leading provider names (Microsoft, Google, Apple, Samsung, Amazon)
+  name = name.replace(/^(Microsoft|Google|Apple|Samsung|Amazon)\s+/i, '');
+
+  // 2. Remove ALL parenthetical groups: "(India)", "(United Kingdom)", "(Neural)", "(Natural)", etc.
+  name = name.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+
+  // 3. Remove standalone technical / quality / delivery labels (whole-word match, case-insensitive).
+  const TECH_WORDS = [
+    'Online', 'Offline', 'Neural', 'Natural', 'Desktop', 'Mobile',
+    'Premium', 'Standard', 'Enhanced', 'HD', 'HQ', 'TTS',
+  ];
+  const techWordRegex = new RegExp(
+    `\\b(${TECH_WORDS.join('|')})\\b`,
+    'gi'
+  );
+  name = name.replace(techWordRegex, '').trim();
+
+  // 4. Remove leading or trailing dashes
+  name = name.replace(/[-–]\s*$/, '').trim();
+  name = name.replace(/^\s*[-–]/, '').trim();
+
+  // 5. Collapse multiple consecutive spaces/dashes down to one clean separator
+  name = name.replace(/\s{2,}/g, ' ');
+  name = name.replace(/\s*-\s*/g, ' - ');
+
+  name = name.trim();
+
+  // If a language name is provided and name does not already contain a dash or language separator
+  if (langName && name && !name.includes('-')) {
+    // Remove language name if it appears at the end without a dash e.g. "Gagan Kannada" -> "Gagan"
+    const langEndRegex = new RegExp(`\\s+${langName}$`, 'i');
+    name = name.replace(langEndRegex, '').trim();
+    name = `${name} - ${langName}`;
+  }
+
+  return name || rawName;
+}
+
 
 /**
  * Check if a Web Speech voice is an exact Indian regional voice
@@ -96,19 +163,23 @@ export function formatWebSpeechVoice(voice, selectedLangCode = '') {
   const langLower = (voice.lang || '').toLowerCase().replace(/_/g, '-');
   const isIndian = isIndianRegionalVoice(voice.lang, voice.name);
   const detectedGender = detectVoiceGender(voice.name);
-  
+
   const langConfig = LANGUAGE_LOCALE_MAP[selectedLangCode];
-  const isExactLangMatch = langConfig 
+  const isExactLangMatch = langConfig
     ? langConfig.matchPrefixes.some(prefix => langLower.startsWith(prefix))
     : isIndian;
 
+  const langName = langConfig?.name || '';
+  const displayName = cleanVoiceName(voice.name, langName);
+
   return {
     id: `webspeech-${voice.name}-${voice.lang}`,
-    name: voice.name,
+    name: displayName,          // clean display name shown in UI
+    rawName: voice.name,        // original OS name preserved (never used in UI)
     rawVoice: voice,
     langLocale: voice.lang || 'en-IN',
     languageCode: selectedLangCode || 'en',
-    gender: detectedGender,
+    gender: detectedGender,     // always 'Male' or 'Female'
     isIndianVoice: isIndian,
     isFallback: !isExactLangMatch,
     statusLabel: isIndian ? (isExactLangMatch ? 'Indian Regional Voice' : 'Indian Voice') : 'Fallback Voice',
@@ -129,17 +200,16 @@ export function getAvailableBrowserVoices() {
 }
 
 /**
- * Filter and prioritize voices for the specified language
+ * Filter and prioritize voices for the specified language.
+ * Returns ONLY exact native matching voices for the selected language.
+ * If no native voice exists on the user's system, returns empty array.
  */
 export function filterVoicesForLanguage(allVoices = [], langCode = 'en') {
   if (!allVoices || allVoices.length === 0) return [];
 
   const langConfig = LANGUAGE_LOCALE_MAP[langCode] || LANGUAGE_LOCALE_MAP.en;
   
-  // 1. Exact match voices (e.g. hi-IN for Hindi, kn-IN for Kannada)
   const exactMatches = [];
-  const regionalOtherMatches = [];
-  const genericFallbacks = [];
 
   allVoices.forEach((rawVoice) => {
     const langLower = (rawVoice.lang || '').toLowerCase().replace(/_/g, '-');
@@ -147,25 +217,10 @@ export function filterVoicesForLanguage(allVoices = [], langCode = 'en') {
 
     if (isExact) {
       exactMatches.push(formatWebSpeechVoice(rawVoice, langCode));
-    } else if (isIndianRegionalVoice(rawVoice.lang, rawVoice.name)) {
-      regionalOtherMatches.push(formatWebSpeechVoice(rawVoice, langCode));
-    } else {
-      genericFallbacks.push(formatWebSpeechVoice(rawVoice, langCode));
     }
   });
 
-  // If exact matching voices exist, return them!
-  if (exactMatches.length > 0) {
-    return exactMatches;
-  }
-
-  // If no exact match, provide regional fallback if available or generic device voices
-  if (regionalOtherMatches.length > 0) {
-    return regionalOtherMatches.map(v => ({ ...v, isFallback: true, statusLabel: 'Regional Fallback' }));
-  }
-
-  // Fallback to default/general system voices (clearly marked as Fallback)
-  return genericFallbacks.slice(0, 3).map(v => ({ ...v, isFallback: true, statusLabel: 'Fallback Voice' }));
+  return exactMatches;
 }
 
 /**

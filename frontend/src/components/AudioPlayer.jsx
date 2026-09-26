@@ -1,13 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Download, Volume2, VolumeX, RotateCcw, Sparkles } from 'lucide-react';
+import { Play, Pause, Download, Volume2, VolumeX } from 'lucide-react';
 
-export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCount, providerUsed, generationTime }) {
+const WAVEFORM_HEIGHTS = [
+  35, 55, 75, 95, 60, 80, 100, 70, 45, 65, 90, 80, 60, 40, 70, 85, 100, 75, 55, 70,
+  90, 45, 65, 80, 95, 60, 40, 75, 85, 70, 55, 80, 95, 65, 45, 75, 90, 60, 35, 50
+];
+
+export default function AudioPlayer({
+  audioUrl,
+  filename,
+  onSaveVoice,
+  onGenerate,
+  isGenerating
+}) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1.0);
 
   const audioRef = useRef(null);
 
@@ -17,49 +27,53 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
       setCurrentTime(0);
+      setDuration(0);
+      if (!isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
+        setDuration(audioRef.current.duration);
+      }
     }
   }, [audioUrl]);
 
   const togglePlay = () => {
+    if (!audioUrl) {
+      if (onGenerate) onGenerate();
+      return;
+    }
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(console.error);
     }
   };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
-      if (!isNaN(audioRef.current.duration)) {
+      if (!isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
         setDuration(audioRef.current.duration);
       }
     }
   };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current && !isNaN(audioRef.current.duration)) {
+    if (audioRef.current && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
       setDuration(audioRef.current.duration);
     }
   };
 
-  const handleSeek = (e) => {
-    const seekTime = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = seekTime;
-      setCurrentTime(seekTime);
-    }
-  };
-
-  const handleVolumeChange = (e) => {
-    const val = parseFloat(e.target.value);
-    setVolume(val);
-    if (audioRef.current) {
-      audioRef.current.volume = val;
-    }
-    setIsMuted(val === 0);
+  const handleWaveformClick = (e) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickRatio = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = clickRatio * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const toggleMute = () => {
@@ -73,203 +87,121 @@ export default function AudioPlayer({ audioUrl, filename, voiceMeta, characterCo
     }
   };
 
-  const handleRateChange = () => {
-    const rates = [0.75, 1.0, 1.25, 1.5, 2.0];
-    const nextIdx = (rates.indexOf(playbackRate) + 1) % rates.length;
-    const newRate = rates[nextIdx];
-    setPlaybackRate(newRate);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = newRate;
+  const handleDownload = () => {
+    if (onSaveVoice) {
+      onSaveVoice();
+    } else if (audioUrl) {
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = filename || 'ai-voice-india.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
   const formatTime = (secs) => {
-    if (isNaN(secs) || secs === Infinity) return '0:00';
+    if (isNaN(secs) || secs === Infinity || secs <= 0) return '0:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  if (!audioUrl) return null;
-
   return (
-    <div className="audio-player-container" style={{
-      padding: '16px',
-      borderRadius: 'var(--radius-md)',
-      background: 'linear-gradient(180deg, rgba(255, 138, 0, 0.08) 0%, rgba(10, 10, 10, 0.95) 100%)',
-      border: '1px solid rgba(255, 138, 0, 0.3)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={() => setIsPlaying(false)}
-      />
+    <div className="card-audio-player">
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onDurationChange={handleLoadedMetadata}
+          onCanPlayThrough={handleLoadedMetadata}
+          onEnded={() => {
+            setIsPlaying(false);
+            setCurrentTime(0);
+          }}
+        />
+      )}
 
-      {/* Header Info */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '14px',
-        flexWrap: 'wrap',
-        gap: '8px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <div className="player-wave-container" style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: '2px',
-            height: '20px',
-            padding: '0 2px',
-            flexShrink: 0
-          }}>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-            <span className={`wave-bar ${isPlaying ? 'playing' : ''}`}></span>
-          </div>
-
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '0.94rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-              <span>Audio Ready</span>
-              <span className="badge badge-emerald" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>HD</span>
-            </h3>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <strong style={{ color: 'var(--saffron-primary)' }}>{voiceMeta?.name || 'Selected Voice'}</strong> • {characterCount} chars
-              {generationTime ? ` • ${generationTime}s` : ''}
-            </div>
-          </div>
-        </div>
-
-        {/* Action: Download MP3 */}
-        <a
-          href={audioUrl}
-          download={filename || 'ai-voice-india.mp3'}
-          className="btn-secondary btn-compact"
-          style={{ textDecoration: 'none', color: '#00D2FF', borderColor: 'rgba(0, 210, 255, 0.3)' }}
-          title="Download MP3 file"
-        >
-          <Download size={14} />
-          <span>Download</span>
-        </a>
+      {/* Header: GENERATED VOICE title centered */}
+      <div className="player-top-header" style={{ justifyContent: 'center' }}>
+        <span className="player-audio-label" style={{ textAlign: 'center' }}>GENERATED VOICE</span>
       </div>
 
-      {/* Progress & Scrubbing Bar */}
-      <div style={{ marginBottom: '12px' }}>
-        <input
-          type="range"
-          min="0"
-          max={duration || 100}
-          step="0.01"
-          value={currentTime}
-          onChange={handleSeek}
-          aria-label="Audio scrubber"
-          style={{ width: '100%', accentColor: 'var(--saffron-primary)', cursor: 'pointer' }}
-        />
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '0.72rem',
-          color: 'var(--text-muted)',
-          marginTop: '2px',
-          fontVariantNumeric: 'tabular-nums'
-        }}>
+      {/* Controls Row */}
+      <div className="player-main-controls">
+        {/* Play/Pause circular button */}
+        <button
+          onClick={togglePlay}
+          className="player-play-btn-black"
+          aria-label={isPlaying ? 'Pause Audio' : 'Play Audio'}
+          title={isPlaying ? 'Pause Audio' : 'Play Audio'}
+          disabled={isGenerating}
+        >
+          {isPlaying ? (
+            <Pause size={20} fill="#F0F6FC" color="#F0F6FC" />
+          ) : (
+            <Play size={20} fill="#F0F6FC" color="#F0F6FC" style={{ marginLeft: '2px' }} />
+          )}
+        </button>
+
+        {/* Waveform Scrubber */}
+        <div
+          className="player-waveform-container"
+          onClick={handleWaveformClick}
+          title="Scrub audio"
+        >
+          {WAVEFORM_HEIGHTS.map((heightPercent, index) => {
+            const barRatio = index / WAVEFORM_HEIGHTS.length;
+            const currentRatio = duration > 0 ? currentTime / duration : 0;
+            const isPlayed = audioUrl && barRatio <= currentRatio;
+            return (
+              <div
+                key={index}
+                className={`waveform-bar ${isPlayed ? 'played' : ''}`}
+                style={{ height: `${heightPercent}%` }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Time Display */}
+        <div className="player-time-display">
           <span>{formatTime(currentTime)}</span>
+          <span style={{ opacity: 0.5, margin: '0 2px' }}>/</span>
           <span>{formatTime(duration)}</span>
         </div>
-      </div>
 
-      {/* Controls Bar (Mobile-friendly wrap) */}
-      <div className="audio-player-controls" style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '10px'
-      }}>
-        {/* Play / Pause / Replay / Speed */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={togglePlay}
-            aria-label={isPlaying ? 'Pause Audio' : 'Play Audio'}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--saffron-primary) 0%, #FF512F 100%)',
-              border: 'none',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(255, 107, 0, 0.4)',
-              transition: 'transform 0.15s ease',
-              flexShrink: 0
-            }}
-          >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: '2px' }} />}
-          </button>
+        {/* Mute Button */}
+        <button
+          onClick={toggleMute}
+          className="player-vol-btn"
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+          title={isMuted ? 'Unmute' : 'Mute'}
+        >
+          {isMuted || volume === 0 ? (
+            <VolumeX size={18} color="#F0F6FC" />
+          ) : (
+            <Volume2 size={18} color="#F0F6FC" fill="#F0F6FC" />
+          )}
+        </button>
 
-          <button
-            onClick={() => {
-              if (audioRef.current) {
-                audioRef.current.currentTime = 0;
-                audioRef.current.play().then(() => setIsPlaying(true));
-              }
-            }}
-            className="btn-secondary btn-compact"
-            title="Replay from start"
-            aria-label="Replay audio"
-          >
-            <RotateCcw size={13} />
-          </button>
-
-          {/* Speed multiplier badge button */}
-          <button
-            onClick={handleRateChange}
-            className="btn-secondary btn-compact"
-            style={{ fontSize: '0.75rem', fontWeight: 700 }}
-            title="Toggle playback speed"
-          >
-            {playbackRate}x
-          </button>
-        </div>
-
-        {/* Volume Control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={toggleMute}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-            aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
-          >
-            {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            onChange={handleVolumeChange}
-            aria-label="Volume level"
-            style={{ width: '70px', accentColor: 'var(--saffron-primary)' }}
-          />
-        </div>
+        {/* Download MP3 Button */}
+        <button
+          onClick={handleDownload}
+          className="ref-btn-save-voice-sm"
+          title="Download MP3"
+          aria-label="Download MP3"
+        >
+          <Download size={14} color="#FFFFFF" />
+          <span>Download MP3</span>
+        </button>
       </div>
     </div>
   );
 }
+
+
+
+

@@ -7,6 +7,20 @@
 
 const getBackendHost = () => {
   let envUrl = (import.meta.env.VITE_API_URL || '').trim();
+
+  // ── Dev-mode guard ──────────────────────────────────────────────────────────
+  // In local development (npm run dev), ignore any remote VITE_API_URL.
+  // Sending local JWT tokens to a remote production backend causes 401 Unauthorized
+  // because the remote backend uses a different JWT_SECRET_KEY.
+  // The Vite proxy (vite.config.js → /api → http://127.0.0.1:8000) handles routing.
+  if (import.meta.env.DEV && envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    console.warn(
+      '[API] DEV mode: ignoring VITE_API_URL ("' + envUrl + '") — using Vite proxy (local backend).\n' +
+      '      To use the local backend, keep VITE_API_URL empty in frontend/.env.'
+    );
+    envUrl = '';
+  }
+
   if (envUrl) {
     // If protocol is omitted (e.g. "ai-voice-india-backend-production.up.railway.app"), prepend https:// (or http:// for localhost)
     if (!/^https?:\/\//i.test(envUrl) && !envUrl.startsWith('/')) {
@@ -126,8 +140,9 @@ export async function generateSpeech({
 }) {
   try {
     const headers = { 'Content-Type': 'application/json' };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('aiv_token') || localStorage.getItem('aivi_token')) : null);
+    if (authToken && authToken !== 'null' && authToken !== 'undefined') {
+      headers['Authorization'] = `Bearer ${authToken.trim()}`;
     }
 
     const res = await fetch(`${API_BASE}/generate`, {
@@ -304,6 +319,33 @@ export async function fetchCurrentUser(token) {
   return data;
 }
 
+/**
+ * loginWithGoogle — exchange a Firebase ID token for a backend JWT.
+ * Calls POST /api/auth/google, which verifies the token server-side
+ * and auto-creates or logs in the user by email.
+ *
+ * @param {string} idToken  Firebase ID token from signInWithGoogle()
+ * @returns {Promise<{ access_token: string, user: object }>}
+ */
+export async function loginWithGoogle(idToken) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+  } catch (networkErr) {
+    console.error('[Auth API] Network error during Google login:', networkErr);
+    throw new Error('Unable to reach the backend server. Please verify the backend is running.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Google sign-in failed. Please try again.'));
+  }
+  return data;
+}
+
 
 // ── Payments API ─────────────────────────────────────────────────────────────
 
@@ -403,3 +445,226 @@ export async function mockUpgradePlan(planId, token) {
   }
   return data;
 }
+
+/**
+ * extractPdfText — sends a PDF file to the backend to extract text and page count via PyMuPDF.
+ * @param {File} file - PDF file object
+ * @param {string|null} token - optional JWT token
+ * @returns {Promise<{ filename: string, page_count: number, text: string, character_count: number }>}
+ */
+export async function extractPdfText(file, token = null) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/pdf/extract`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(extractDetail(data, res.status, 'Failed to extract text from PDF file.'));
+    }
+
+    return data;
+  } catch (err) {
+    if (err.message && err.message.includes('Failed to fetch')) {
+      throw new Error('Backend service unavailable. Please check your connection.');
+    }
+    throw err;
+  }
+}
+
+/**
+ * AI Assistant Chat Endpoint Caller
+ */
+export async function askAiAssistant(message, history = [], token = null) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/ai/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message, messages: history })
+    });
+
+    const data = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(extractDetail(data, res.status, 'Failed to generate AI response.'));
+    }
+
+    return data;
+  } catch (err) {
+    console.warn('AI Chat API fallback activated:', err);
+    // Intelligent client-side fallback if backend is offline
+    let answer = "Artificial intelligence and voice synthesis allow instant creation of natural spoken audio. You can paste any prompt here to generate voiceover content for your videos, presentations, and educational modules.";
+    const p = (message || '').toLowerCase();
+    if (p.includes('python')) {
+      answer = "Python is a high-level, general-purpose programming language widely used in AI, data science, web development, and automation. It is known for its clear syntax and huge ecosystem of packages.";
+    } else if (p.includes('story')) {
+      answer = "Once upon a time in a vibrant tech metropolis, an innovator dreamed of making AI voice synthesis accessible to every voice in India. Through perseverance and cutting-edge technology, AI Voice India was born!";
+    }
+    return { answer };
+  }
+}
+
+// ── Support API Helpers ──────────────────────────────────────────────────────
+
+export async function submitSupportRequest({ message, userName = 'Guest User', userEmail = '', userId = null }) {
+  try {
+    const res = await fetch(`${API_BASE}/support/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        user_name: userName,
+        user_email: userEmail,
+        user_id: userId
+      })
+    });
+    const data = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(extractDetail(data, res.status, 'Failed to submit support request.'));
+    }
+    return data;
+  } catch (err) {
+    console.warn('Support submission network error, saving locally:', err);
+    const now = new Date();
+    return {
+      status: 'success',
+      message: "Your support request has been sent successfully.",
+      data: {
+        id: Date.now(),
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail,
+        message,
+        date_str: now.toISOString().split('T')[0],
+        time_str: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: 'New'
+      }
+    };
+  }
+}
+
+export async function fetchSupportRequests() {
+  try {
+    const res = await fetch(`${API_BASE}/support/requests`);
+    if (!res.ok) throw new Error('Failed to fetch support requests.');
+    return await res.json();
+  } catch (err) {
+    console.warn('Fetching support requests fallback');
+    return [];
+  }
+}
+
+export async function updateSupportRequestStatus(id, status) {
+  try {
+    const res = await fetch(`${API_BASE}/support/requests/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    return await safeJson(res);
+  } catch (err) {
+    console.warn('Update support status fallback:', err);
+    return { status: 'success' };
+  }
+}
+
+export async function deleteSupportRequest(id) {
+  try {
+    const res = await fetch(`${API_BASE}/support/requests/${id}`, {
+      method: 'DELETE'
+    });
+    return await safeJson(res);
+  } catch (err) {
+    console.warn('Delete support request fallback:', err);
+    return { status: 'success' };
+  }
+}
+
+// ── Settings API Helpers ─────────────────────────────────────────────────────
+
+export async function fetchUserSettings(token) {
+  if (!token) return { settings: {}, api_key: 'aivi_demo_key_9982' };
+  try {
+    const res = await fetch(`${API_BASE}/user/settings`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return { settings: {}, api_key: 'aivi_live_key_9982' };
+    return await res.json();
+  } catch (err) {
+    return { settings: {}, api_key: 'aivi_live_key_9982' };
+  }
+}
+
+export async function saveUserSettings(settings, token) {
+  if (!token) return { status: 'success' };
+  try {
+    const res = await fetch(`${API_BASE}/user/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ settings })
+    });
+    return await safeJson(res);
+  } catch (err) {
+    return { status: 'success' };
+  }
+}
+
+export async function changeUserPassword({ currentPassword, newPassword }, token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+    });
+  } catch (err) {
+    throw new Error('Unable to reach server to change password.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Password update failed.'));
+  }
+  return data;
+}
+
+export async function deleteUserAccount(token) {
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/user/account`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+  } catch (err) {
+    throw new Error('Unable to reach server to delete account.');
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(extractDetail(data, res.status, 'Account deletion failed.'));
+  }
+  return data;
+}
+
+

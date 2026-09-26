@@ -2,16 +2,22 @@ import React from 'react';
 import { Globe, ArrowRight, Sparkles } from 'lucide-react';
 import { INDIAN_LANGUAGES } from '../data/languages';
 
-export default function LanguagesShowcase({ onSelectLanguage }) {
+export default function LanguagesShowcase({ onSelectLanguage, voices = [] }) {
+  const safeVoices = Array.isArray(voices) ? voices : [];
+  const activeLanguages = INDIAN_LANGUAGES.filter(lang =>
+    safeVoices.some(v => v && v.language === lang.code)
+  );
+  const displayLanguages = activeLanguages.length > 0 ? activeLanguages : INDIAN_LANGUAGES;
+
   return (
     <div className="container" style={{ paddingBottom: '60px' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '36px' }}>
         <h2 style={{ fontSize: '2.2rem', marginBottom: '10px' }}>
-          {INDIAN_LANGUAGES.length} Supported Indian Languages
+          {displayLanguages.length} Supported Indian Languages
         </h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto' }}>
-          Authentic native phonetics and regional intonation across Indo-Aryan, Dravidian, and Classical linguistic families.
+          Authentic native phonetics and regional intonation across active Indo-Aryan and Dravidian language families.
         </p>
       </div>
 
@@ -21,7 +27,7 @@ export default function LanguagesShowcase({ onSelectLanguage }) {
         gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
         gap: '20px'
       }}>
-        {INDIAN_LANGUAGES.map((lang) => (
+        {displayLanguages.map((lang) => (
           <div
             key={lang.code}
             className="glass-card glass-card-interactive"

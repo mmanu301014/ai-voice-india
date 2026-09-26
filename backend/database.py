@@ -59,7 +59,7 @@ async def init_db():
                 billing_period_start TIMESTAMP,
                 billing_period_end TIMESTAMP,
                 subscription_status TEXT NOT NULL DEFAULT 'active',
-                monthly_character_limit INTEGER NOT NULL DEFAULT 200,
+                monthly_character_limit INTEGER NOT NULL DEFAULT 1000,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -85,7 +85,11 @@ async def init_db():
         if "subscription_status" not in existing_cols:
             await db.execute("ALTER TABLE users ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'active'")
         if "monthly_character_limit" not in existing_cols:
-            await db.execute("ALTER TABLE users ADD COLUMN monthly_character_limit INTEGER NOT NULL DEFAULT 500")
+            await db.execute("ALTER TABLE users ADD COLUMN monthly_character_limit INTEGER NOT NULL DEFAULT 1000")
+        if "settings" not in existing_cols:
+            await db.execute("ALTER TABLE users ADD COLUMN settings TEXT DEFAULT '{}'")
+        if "api_key" not in existing_cols:
+            await db.execute("ALTER TABLE users ADD COLUMN api_key TEXT DEFAULT ''")
 
         # 2. Payments & Orders Table
         await db.execute("""
@@ -105,6 +109,21 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
+
+        # 3. Support Requests Table
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS support_requests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                user_name TEXT NOT NULL,
+                user_email TEXT NOT NULL,
+                message TEXT NOT NULL,
+                date_str TEXT NOT NULL,
+                time_str TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'New',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 

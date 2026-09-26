@@ -149,7 +149,7 @@ async def _process_user_billing_reset(user_dict: dict) -> dict:
             needs_db_update = True
 
     plan_info = get_plan(plan_id)
-    monthly_limit = plan_info.get("monthly_character_limit", 200)
+    monthly_limit = plan_info.get("monthly_character_limit", 1000)
 
     user_dict["plan"] = plan_id
     user_dict["subscription_status"] = subscription_status
@@ -206,7 +206,19 @@ async def get_user_by_email(email: str) -> Optional[dict]:
 
 
 async def get_user_by_id(user_id: int) -> Optional[dict]:
-    """Fetch a user record by ID. Returns None if not found."""
+    """Fetch a user record by ID. Returns guest profile if user_id == 0, None if not found."""
+    if user_id == 0:
+        return {
+            "id": 0,
+            "name": "Guest User",
+            "email": "guest@aivoiceindia.in",
+            "plan": "free",
+            "characters_used": 0,
+            "monthly_character_limit": 5000,
+            "character_limit": 5000,
+            "characters_remaining": 5000,
+            "subscription_status": "active"
+        }
     db = await get_db()
     try:
         async with db.execute(
@@ -359,6 +371,13 @@ async def increment_characters_used(user_id: int, char_count: int) -> dict:
     Increments the characters_used counter ONLY after successful audio generation.
     Must be called after TTS succeeds — never before.
     """
+    if user_id == 0:
+        return {
+            "characters_used": char_count,
+            "character_limit": 5000,
+            "characters_remaining": 5000 - char_count,
+            "plan": "free"
+        }
     db = await get_db()
     try:
         await db.execute(

@@ -26,7 +26,16 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
           secure: false,
-          ws: true,
+          ws: false,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, res) => {
+              console.warn('[Vite Proxy Warning] Backend request failed:', err.message);
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(502, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ detail: 'Backend service unreachable on 127.0.0.1:8000. Please start the uvicorn backend server.' }));
+              }
+            });
+          }
         }
       }
     },

@@ -193,7 +193,7 @@ function GoogleIcon() {
 }
 
 export default function Login({ onSwitchToRegister, onSuccess }) {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -201,6 +201,7 @@ export default function Login({ onSwitchToRegister, onSuccess }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -235,9 +236,23 @@ export default function Login({ onSwitchToRegister, onSuccess }) {
     setInfo('Password reset instructions will be sent to your registered email address.');
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setError('');
-    setInfo('Google Sign-In is configured for production. Please use email/password for local access.');
+    setInfo('');
+    setGoogleLoading(true);
+    try {
+      await googleLogin();
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+      }
+    } catch (err) {
+      // Don't show error for user-cancelled popup
+      if (err.code !== 'CANCELLED') {
+        setError(err.message || 'Google sign-in failed. Please try again.');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -625,6 +640,7 @@ export default function Login({ onSwitchToRegister, onSuccess }) {
             <button
               type="button"
               onClick={handleGoogleLogin}
+              disabled={googleLoading || loading}
               style={{
                 width: '100%',
                 height: '42px',
@@ -634,23 +650,35 @@ export default function Login({ onSwitchToRegister, onSuccess }) {
                 borderRadius: '8px',
                 fontSize: '0.85rem',
                 fontWeight: 500,
-                cursor: 'pointer',
+                cursor: (googleLoading || loading) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                opacity: (googleLoading || loading) ? 0.75 : 1,
               }}
               onMouseEnter={(e) => {
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                if (!googleLoading && !loading) {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
               }}
             >
-              <GoogleIcon />
-              Continue with Google
+              {googleLoading ? (
+                <>
+                  <Loader size={16} style={{ animation: 'spin 1s linear infinite', marginRight: '10px' }} />
+                  <span>Signing in with Google…</span>
+                </>
+              ) : (
+                <>
+                  <GoogleIcon />
+                  Continue with Google
+                </>
+              )}
             </button>
 
             {/* Switch to Register */}

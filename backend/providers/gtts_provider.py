@@ -64,8 +64,20 @@ class GTTSProvider(BaseTTSProvider):
 
         def _generate():
             fp = io.BytesIO()
-            tts = gTTS(text=text, lang=lang_code, slow=slow, tld="co.in")
-            tts.write_to_fp(fp)
+            try:
+                tts = gTTS(text=text, lang=lang_code, slow=slow, tld="co.in")
+                tts.write_to_fp(fp)
+            except Exception as e:
+                print(f"[gTTS Warning] tld='co.in' failed for lang='{lang_code}': {e}. Retrying standard gTTS...")
+                fp = io.BytesIO()
+                try:
+                    tts = gTTS(text=text, lang=lang_code, slow=slow)
+                    tts.write_to_fp(fp)
+                except Exception as e2:
+                    print(f"[gTTS Warning] lang='{lang_code}' failed: {e2}. Falling back to English gTTS...")
+                    fp = io.BytesIO()
+                    tts = gTTS(text=text, lang="en", slow=slow)
+                    tts.write_to_fp(fp)
             fp.seek(0)
             return fp.read()
 

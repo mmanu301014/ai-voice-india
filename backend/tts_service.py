@@ -159,6 +159,69 @@ INDIAN_LANGUAGES: List[Dict[str, Any]] = [
         "region": "Pan-India Classical",
         "family": "Indo-Aryan Classical",
         "is_default": False
+    },
+    {
+        "code": "mni",
+        "name": "Manipuri",
+        "native_name": "মৈতৈলোন্",
+        "sample": "ꯈꯨꯔꯨꯝꯖꯔꯤ! ꯑꯦꯑꯥꯏ ꯚꯣꯏꯁ ꯏꯟꯗꯤꯌꯥꯗꯥ ꯇꯔꯥꯝꯅꯥ ꯑꯣꛛꯆꯔꯤ।",
+        "region": "Manipur",
+        "family": "Tibeto-Burman",
+        "is_default": False
+    },
+    {
+        "code": "ks",
+        "name": "Kashmiri",
+        "native_name": "कॉशुर / کٲشُر",
+        "sample": "آداب! خوش آمدید اے آئی وائس انڈیا منز۔",
+        "region": "Jammu & Kashmir",
+        "family": "Dardic / Indo-Aryan",
+        "is_default": False
+    },
+    {
+        "code": "sd",
+        "name": "Sindhi",
+        "native_name": "سنڌي / सिन्धी",
+        "sample": "جئي جھولي لعل! سنڌي ٻوليءَ ۾ ڀلي ڪري آيا۔",
+        "region": "Pan-India",
+        "family": "Indo-Aryan",
+        "is_default": False
+    },
+    {
+        "code": "mai",
+        "name": "Maithili",
+        "native_name": "मैथिली",
+        "sample": "प्रणाम! मिथिलाक पावन भूमि सँ AI Voice India मे अहाँक स्वागत अछि।",
+        "region": "Mithila (Bihar & Jharkhand)",
+        "family": "Indo-Aryan",
+        "is_default": False
+    },
+    {
+        "code": "sat",
+        "name": "Santali",
+        "native_name": "ᱥᱟᱱᱛᱟᱲᱤ",
+        "sample": "ᱡᱚᱦᱟᱨ! ᱟᱞᱮᱭᱟᱜ AI Voice India ᱨᱮ ᱥᱟᱹᱜᱩᱱ ᱫᱟᱨᱟᱢ।",
+        "region": "Jharkhand & Odisha",
+        "family": "Austroasiatic",
+        "is_default": False
+    },
+    {
+        "code": "doi",
+        "name": "Dogri",
+        "native_name": "डोगरी",
+        "sample": "जय डुग्गर! डोगरी भाखा च तुंदा स्वागत ऐ।",
+        "region": "Jammu Region",
+        "family": "Indo-Aryan",
+        "is_default": False
+    },
+    {
+        "code": "brx",
+        "name": "Bodo",
+        "native_name": "बड़ो",
+        "sample": "खुलुमबाय! AI Voice India याव नोंथांखौ बरायबाय।",
+        "region": "Assam & Bodoland",
+        "family": "Tibeto-Burman",
+        "is_default": False
     }
 ]
 
@@ -169,7 +232,9 @@ class TTSService:
         os.makedirs(self.cache_dir, exist_ok=True)
 
     def get_languages(self) -> List[Dict[str, Any]]:
-        return INDIAN_LANGUAGES
+        all_voices = self.provider_manager.get_all_voices()
+        supported_lang_codes = set(v["language"] for v in all_voices if v.get("language"))
+        return [lang for lang in INDIAN_LANGUAGES if lang["code"] in supported_lang_codes]
 
     def get_voices(self, language: Optional[str] = None) -> List[Dict[str, Any]]:
         return self.provider_manager.get_all_voices(language)

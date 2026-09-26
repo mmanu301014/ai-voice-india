@@ -276,7 +276,7 @@ EDGE_INDIAN_VOICES: List[Dict[str, Any]] = [
         "region": "India",
         "gender": "Female",
         "style": "Conversational / Warm",
-        "preview_text": "السلام علیکم! میں گل ہوں۔ نرم اور باوقار اردو لہجہ۔",
+        "preview_text": "السلام علیکم! میں گل ہوں۔ نرم اور باوقار اردو لہجہ।",
         "emotions": ["Warm", "Conversational"],
         "provider": "edge_tts",
         "is_neural": True,
@@ -321,77 +321,6 @@ EDGE_INDIAN_VOICES: List[Dict[str, Any]] = [
         "style": "Global English / Studio",
         "preview_text": "Hello and welcome to AI Voice India, the premier multilingual voice studio.",
         "emotions": ["Warm", "Commercial", "YouTube"],
-        "provider": "edge_tts",
-        "is_neural": True,
-        "is_free": True
-    },
-    # --- ODIA, ASSAMESE, NEPALI, SANSKRIT, KONKANI (Supported via Multilingual Indian Neural Fallbacks) ---
-    {
-        "id": "hi-IN-SwaraNeural",
-        "name": "Aditi (Odia Model)",
-        "language": "or",
-        "language_name": "Odia",
-        "region": "Odisha, India",
-        "gender": "Female",
-        "style": "Natural Regional",
-        "preview_text": "ନମସ୍କାର! ଭାରତକୁ ସ୍ୱାଗତ।",
-        "emotions": ["Natural", "Warm"],
-        "provider": "edge_tts",
-        "is_neural": True,
-        "is_free": True
-    },
-    {
-        "id": "bn-IN-TanishaaNeural",
-        "name": "Ananya (Assamese Model)",
-        "language": "as",
-        "language_name": "Assamese",
-        "region": "Assam, India",
-        "gender": "Female",
-        "style": "Natural Eastern",
-        "preview_text": "নমস্কাৰ! ভাৰতলৈ আপোনাক স্বাগতম।",
-        "emotions": ["Natural", "Friendly"],
-        "provider": "edge_tts",
-        "is_neural": True,
-        "is_free": True
-    },
-    {
-        "id": "hi-IN-MadhurNeural",
-        "name": "Bikram (Nepali Model)",
-        "language": "ne",
-        "language_name": "Nepali",
-        "region": "Sikkim / North India",
-        "gender": "Male",
-        "style": "Conversational",
-        "preview_text": "नमस्ते! नेपाल तथा भारतमा तपाईंलाई स्वागत छ।",
-        "emotions": ["Conversational", "Warm"],
-        "provider": "edge_tts",
-        "is_neural": True,
-        "is_free": True
-    },
-    {
-        "id": "mr-IN-AarohiNeural",
-        "name": "Sanvi (Konkani Model)",
-        "language": "kok",
-        "language_name": "Konkani",
-        "region": "Goa / Coastal Karnataka",
-        "gender": "Female",
-        "style": "Coastal Natural",
-        "preview_text": "नमस्कार! कोंकणी भाशेंत तुमकां येवकार.",
-        "emotions": ["Friendly", "Warm"],
-        "provider": "edge_tts",
-        "is_neural": True,
-        "is_free": True
-    },
-    {
-        "id": "hi-IN-SwaraNeural",
-        "name": "Arya (Sanskrit Model)",
-        "language": "sa",
-        "language_name": "Sanskrit",
-        "region": "India",
-        "gender": "Female",
-        "style": "Vedic / Classical",
-        "preview_text": "सर्वे भवन्तु सुखिनः सर्वे सन्तु निरामयाः।",
-        "emotions": ["Classical", "Serene"],
         "provider": "edge_tts",
         "is_neural": True,
         "is_free": True
@@ -443,7 +372,11 @@ class EdgeTTSProvider(BaseTTSProvider):
         rate_str = f"{rate_percent:+d}%"
 
         # Calculate pitch offset e.g. "+5Hz", "-5Hz"
-        pitch_hz = int(round(pitch * 20))
+        # If pitch is passed as multiplier (e.g. 0.5 to 5.0, where 1.0 is neutral)
+        if pitch > 0:
+            pitch_hz = int(round((pitch - 1.0) * 20))
+        else:
+            pitch_hz = int(round(pitch * 20))
         pitch_str = f"{pitch_hz:+d}Hz"
 
         # Select matching or fallback voice ID

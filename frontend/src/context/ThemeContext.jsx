@@ -11,20 +11,15 @@ const STORAGE_KEY = 'aiv_theme';
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    // Read stored preference; default to 'dark'
-    try {
-      return localStorage.getItem(STORAGE_KEY) || 'dark';
-    } catch {
-      return 'dark';
-    }
+    return 'dark';
   });
 
   // Apply theme attribute to <html> whenever it changes
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', theme);
+    root.setAttribute('data-theme', 'dark');
     try {
-      localStorage.setItem(STORAGE_KEY, theme);
+      localStorage.setItem(STORAGE_KEY, 'dark');
     } catch {
       // ignore storage errors
     }

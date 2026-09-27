@@ -19,6 +19,7 @@ import AiAssistantView from './AiAssistantView';
 import VoiceEffectsView from './VoiceEffectsView';
 import HelpSupportView from './HelpSupportView';
 import SettingsView from './SettingsView';
+import MobileDashboard from './MobileDashboard';
 
 // ── Soundwave Logo Icon matching reference design ────────────────────────────
 function SoundwaveIcon({ color = '#F0F6FC', size = 22 }) {
@@ -77,6 +78,28 @@ export default function VoiceStudio({
   const [searchVoiceQuery, setSearchVoiceQuery] = useState('');
   const [activeMenuTab, setActiveMenuTab] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Responsive breakpoint listener for mobile phone screens (<= 768px)
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 768;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 768px)');
+    const onChange = (e) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    } else if (mql.addListener) {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+  }, []);
 
   // Helper formatting functions for clean language and voice names
   const getCleanLangName = (langObj) => {
@@ -415,6 +438,63 @@ export default function VoiceStudio({
     if (setActiveTab) setActiveTab('home');
   };
 
+  // ── MOBILE DASHBOARD PRESENTATION (Phone screens <= 768px) ──
+  // Dedicated responsive presentation matching uploaded reference design
+  if (isMobile && activeMenuTab === 'home') {
+    return (
+      <div className="ref-mobile-dashboard-view">
+        <MobileDashboard
+          user={user}
+          token={token}
+          handleSignOut={handleSignOut}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+          activeMenuTab={activeMenuTab}
+          setActiveMenuTab={setActiveMenuTab}
+          setActiveModal={setActiveModal}
+          setActiveTab={setActiveTab}
+          availableLanguages={availableLanguages}
+          currentLangObj={currentLangObj}
+          selectedLang={selectedLang}
+          setSelectedLang={setSelectedLang}
+          combinedVoiceList={combinedVoiceList}
+          activeVoiceMeta={activeVoiceMeta}
+          selectedVoiceId={selectedVoiceId}
+          setSelectedVoiceId={setSelectedVoiceId}
+          hasSelectedLang={hasSelectedLang}
+          setHasSelectedLang={setHasSelectedLang}
+          hasSelectedVoice={hasSelectedVoice}
+          setHasSelectedVoice={setHasSelectedVoice}
+          getCleanLangName={getCleanLangName}
+          getCleanVoiceName={getCleanVoiceName}
+          text={text}
+          setText={setText}
+          charCount={charCount}
+          copiedText={copiedText}
+          handleCopyText={handleCopyText}
+          handleDeleteText={handleDeleteText}
+          speed={speed}
+          setSpeed={setSpeed}
+          pitch={pitch}
+          setPitch={setPitch}
+          volume={volume}
+          setVolume={setVolume}
+          handleGenerate={handleGenerate}
+          isGenerating={isGenerating}
+          generationResult={generationResult}
+          errorMessage={errorMessage}
+          setErrorMessage={setErrorMessage}
+          handleSaveVoice={handleSaveVoice}
+          showUpgradeModal={showUpgradeModal}
+          setShowUpgradeModal={setShowUpgradeModal}
+          onOpenUpgrade={onOpenUpgrade}
+        />
+      </div>
+    );
+  }
+
+  // ── DESKTOP DASHBOARD PRESENTATION (Laptop / Desktop > 768px) ──
+  // 100% UNCHANGED, exact original laptop dashboard
   return (
     <div className="ref-dashboard-container" ref={dropdownRef}>
       
@@ -581,8 +661,8 @@ export default function VoiceStudio({
           ═══════════════════════════════════════════════════════ */}
       <main className="ref-main-workspace">
         
-        {/* Top Header: Sign Out button on Top Right */}
-        <header className="ref-top-header">
+        {/* Top Header: Sign Out button on Top Right (hidden on mobile home since MobileDashboard has its own top header) */}
+        <header className={`ref-top-header ${activeMenuTab === 'home' ? 'hide-on-mobile-home' : ''}`}>
           {/* Mobile hamburger menu toggle */}
           <button
             className="ref-hamburger-btn"

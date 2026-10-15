@@ -1,13 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Globe, Mic, FileText, Copy, Trash2, Check, Download,
   Play, Pause, RefreshCw, AlertCircle, X, Search, User, Menu,
-  Home, FileCheck, Crown, Code, Sparkles, Wand2, Clock, Headphones, Settings, LogOut
+  Home, FileCheck, Crown, Code, Sparkles, Wand2, Clock, Headphones, Settings, LogOut,
+  ChevronDown
 } from 'lucide-react';
 import UpgradeModal from './UpgradeModal';
 
-// Exact Soundwave / Equalizer icon matching reference image for Voice Control
-function EqualizerSlidersIcon({ size = 18, color = '#F0F6FC' }) {
+// ── Equalizer Sliders Icon ───────────────────────────────────────────────────
+function EqualizerSlidersIcon({ size = 18, color = '#C9D1D9' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2" strokeLinecap="round" />
@@ -18,11 +19,32 @@ function EqualizerSlidersIcon({ size = 18, color = '#F0F6FC' }) {
   );
 }
 
-// Waveform heights matching visual distribution in reference screenshot
+// ── Soundwave Logo Icon ──────────────────────────────────────────────────────
+function SoundwaveIcon({ size = 20, color = '#2F81F7' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="11" width="3.8" height="10" rx="1.9" fill={color} />
+      <rect x="8" y="7" width="3.8" height="18" rx="1.9" fill={color} />
+      <rect x="14" y="3" width="3.8" height="26" rx="1.9" fill={color} />
+      <rect x="20" y="7" width="3.8" height="18" rx="1.9" fill={color} />
+      <rect x="26" y="11" width="3.8" height="10" rx="1.9" fill={color} />
+    </svg>
+  );
+}
+
+// ── Waveform heights ─────────────────────────────────────────────────────────
 const MOBILE_WAVE_BARS = [
-  25, 45, 65, 80, 50, 70, 95, 60, 40, 60, 85, 75, 55, 35, 65, 80, 95, 70, 50, 65,
-  85, 40, 60, 75, 90, 55, 35, 70, 80, 65, 50, 75, 90, 60, 40, 70, 85, 55, 30, 45
+  22, 42, 65, 80, 50, 72, 95, 60, 38, 58, 85, 75, 52, 33, 65, 80, 95, 70, 48, 62,
+  85, 38, 58, 75, 90, 52, 33, 70, 80, 62, 48, 72, 90, 58, 38, 68, 85, 52, 28, 42
 ];
+
+// ── Slider fill style helper ─────────────────────────────────────────────────
+function sliderFill(value, min, max) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  return {
+    background: `linear-gradient(to right, #2F81F7 0%, #2F81F7 ${pct}%, #21262d ${pct}%, #21262d 100%)`
+  };
+}
 
 export default function MobileDashboard({
   user,
@@ -70,32 +92,27 @@ export default function MobileDashboard({
   setShowUpgradeModal,
   onOpenUpgrade
 }) {
-  // Mobile Modal Dropdown States
+  // ── Modal / Search States ──────────────────────────────────────────────────
   const [showLangModal, setShowLangModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [langSearch, setLangSearch] = useState('');
   const [voiceSearch, setVoiceSearch] = useState('');
 
-  // Audio Player State for Mobile
+  // ── Audio Player State ─────────────────────────────────────────────────────
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [audioReady, setAudioReady] = useState(false);
   const audioRef = useRef(null);
 
   const audioUrl = generationResult?.audio_url;
 
-  // Sync audio source when generationResult changes
+  // Reset player state when audio URL changes
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
-      if (!isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
-        setDuration(audioRef.current.duration);
-      }
-    }
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setAudioReady(false);
   }, [audioUrl]);
 
   // Sync volume with audio element
@@ -105,9 +122,30 @@ export default function MobileDashboard({
     }
   }, [volume]);
 
+  const handleLoadedMetadata = useCallback(() => {
+    if (audioRef.current) {
+      const d = audioRef.current.duration;
+      if (!isNaN(d) && isFinite(d) && d > 0) {
+        setDuration(d);
+        setAudioReady(true);
+      }
+    }
+  }, []);
+
+  const handleTimeUpdate = useCallback(() => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+      const d = audioRef.current.duration;
+      if (!isNaN(d) && isFinite(d) && d > 0) {
+        setDuration(d);
+        if (!audioReady) setAudioReady(true);
+      }
+    }
+  }, [audioReady]);
+
   const togglePlay = () => {
     if (!audioUrl) {
-      if (text.trim() && !isGenerating) {
+      if (text.trim() && !isGenerating && hasSelectedLang && hasSelectedVoice) {
         handleGenerate();
       }
       return;
@@ -117,46 +155,46 @@ export default function MobileDashboard({
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current
-        .play()
+      audioRef.current.play()
         .then(() => setIsPlaying(true))
-        .catch(console.error);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      if (!isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
-        setDuration(audioRef.current.duration);
-      }
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current && !isNaN(audioRef.current.duration) && audioRef.current.duration > 0) {
-      setDuration(audioRef.current.duration);
+        .catch((err) => {
+          console.error('[AudioPlayer] Play failed:', err);
+          setIsPlaying(false);
+        });
     }
   };
 
   const handleWaveformClick = (e) => {
-    if (!audioRef.current || !duration) return;
+    if (!audioRef.current || !duration || !audioReady) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-    const targetTime = ratio * duration;
-    audioRef.current.currentTime = targetTime;
-    setCurrentTime(targetTime);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = ratio * duration;
+    setCurrentTime(ratio * duration);
+  };
+
+  const handleDownloadAudio = () => {
+    if (!audioUrl) return;
+    try {
+      const a = document.createElement('a');
+      a.href = audioUrl;
+      a.download = generationResult?.filename || 'ai-voice-india.mp3';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('[Download] Failed:', err);
+    }
   };
 
   const formatTime = (secs) => {
-    if (isNaN(secs) || secs === Infinity || secs <= 0) return '0:00';
+    if (!secs || isNaN(secs) || !isFinite(secs) || secs <= 0) return '0:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  // Filtered lists for modals
+  // ── Filtered lists for modals ──────────────────────────────────────────────
   const filteredLanguages = availableLanguages.filter((l) => {
     if (!l) return false;
     if (!langSearch.trim()) return true;
@@ -179,8 +217,23 @@ export default function MobileDashboard({
     );
   });
 
+  // ── Derived display values ─────────────────────────────────────────────────
+  const selectedLangName = hasSelectedLang && currentLangObj
+    ? getCleanLangName(currentLangObj)
+    : 'Select language';
+
+  const selectedVoiceName = hasSelectedVoice && activeVoiceMeta?.name
+    ? getCleanVoiceName(activeVoiceMeta)
+    : (combinedVoiceList.length === 0 && hasSelectedLang ? 'No voices' : 'Select voice');
+
+  const charLimit = 1000;
+  const safeCharCount = typeof charCount === 'number' ? charCount : (text ? text.length : 0);
+  const charNearLimit = safeCharCount > charLimit * 0.85;
+  const charAtLimit = safeCharCount >= charLimit;
+  const currentRatio = duration > 0 ? currentTime / duration : 0;
+
   return (
-    <div className="mobile-dashboard-wrapper">
+    <div className="mob-wrapper">
       {/* ── Upgrade Modal ── */}
       {showUpgradeModal && (
         <UpgradeModal
@@ -193,7 +246,7 @@ export default function MobileDashboard({
         />
       )}
 
-      {/* ── Hidden Audio Element for Playback ── */}
+      {/* ── Hidden Audio Element ── */}
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -205,321 +258,306 @@ export default function MobileDashboard({
           onEnded={() => {
             setIsPlaying(false);
             setCurrentTime(0);
+            if (audioRef.current) audioRef.current.currentTime = 0;
           }}
+          onError={() => { setIsPlaying(false); setAudioReady(false); }}
         />
       )}
 
-      {/* ── TOP HEADER ── */}
-      <header className="mobile-top-header">
+      {/* ═══ TOP HEADER ══════════════════════════════════════════════ */}
+      <header className="mob-header">
         <button
           type="button"
-          className="mobile-hamburger-btn"
+          className="mob-icon-btn"
           onClick={() => setMobileMenuOpen(true)}
-          aria-label="Open Navigation Menu"
+          aria-label="Open navigation menu"
         >
-          <Menu size={24} color="#FFFFFF" />
+          <Menu size={20} color="#C9D1D9" />
         </button>
+
+        <div className="mob-header-brand">
+          <SoundwaveIcon size={17} color="#2F81F7" />
+          <span className="mob-header-brand-text">AI VOICE INDIA</span>
+        </div>
 
         <button
           type="button"
-          className="mobile-signout-btn"
+          className="mob-signout-btn"
           onClick={handleSignOut}
           aria-label="Sign out"
         >
-          <User size={15} color="#FFFFFF" />
+          <User size={13} color="#C9D1D9" />
           <span>Sign out</span>
         </button>
       </header>
 
-      {/* ── MAIN CONTENT CONTAINER ── */}
-      <main className="mobile-content-container">
+      {/* ═══ MAIN CONTENT ════════════════════════════════════════════ */}
+      <main className="mob-content">
 
-        {/* ── HERO SECTION ── */}
-        <section className="mobile-hero-section">
-          {/* Peacock Logo with Glowing Blue Aura */}
-          <div className="mobile-peacock-wrap">
-            <div className="mobile-peacock-glow" />
+        {/* ── HERO ─────────────────────────────────────────────────── */}
+        <section className="mob-hero">
+          <div className="mob-peacock-wrap">
+            <div className="mob-peacock-glow" />
             <img
               src="/peacock-logo-transparent.png"
-              alt="AI Voice India Peacock"
-              className="mobile-peacock-img"
+              alt="AI Voice India"
+              className="mob-peacock-img"
             />
           </div>
-
-          <h1 className="mobile-hero-heading">
-            <span>Create something </span>
-            <span className="mobile-text-blue">new today</span>
-          </h1>
-
-          <p className="mobile-hero-subtitle">
-            Ask any question, generate voiceover scripts, or choose an example prompt below.
-          </p>
+          <div className="mob-hero-text">
+            <h1 className="mob-hero-heading">
+              Create something <span className="mob-accent-blue">new today</span>
+            </h1>
+            <p className="mob-hero-subtitle">
+              Generate premium AI voiceovers in Indian languages.
+            </p>
+          </div>
         </section>
 
-        {/* ── LANGUAGE & VOICE SELECTORS (2 CARDS IN A ROW) ── */}
-        <div className="mobile-selectors-row">
-          {/* Language Card */}
-          <div className="mobile-card mobile-selector-card">
-            <div className="mobile-selector-header">
-              <Globe size={16} color="#E2E8F0" />
+        {/* ── SELECTORS ROW ─────────────────────────────────────────── */}
+        <div className="mob-selectors-row">
+          {/* Language */}
+          <div className="mob-card mob-selector-card">
+            <div className="mob-selector-label">
+              <Globe size={13} color="#8B949E" />
               <span>Language</span>
             </div>
             <button
               type="button"
-              className="mobile-select-trigger"
-              onClick={() => {
-                setShowLangModal(true);
-                setShowVoiceModal(false);
-              }}
+              className="mob-select-btn"
+              onClick={() => { setShowLangModal(true); setShowVoiceModal(false); }}
+              aria-haspopup="listbox"
             >
-              <span className="mobile-select-val">
-                {hasSelectedLang ? getCleanLangName(currentLangObj) : 'Select language'}
-              </span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              <span className="mob-select-val" title={selectedLangName}>{selectedLangName}</span>
+              <ChevronDown size={13} color="#64748B" strokeWidth={2.5} />
             </button>
           </div>
 
-          {/* Voice Card */}
-          <div className="mobile-card mobile-selector-card">
-            <div className="mobile-selector-header">
-              <Mic size={16} color="#E2E8F0" />
+          {/* Voice */}
+          <div className="mob-card mob-selector-card">
+            <div className="mob-selector-label">
+              <Mic size={13} color="#8B949E" />
               <span>Voice</span>
             </div>
             <button
               type="button"
-              className="mobile-select-trigger"
-              onClick={() => {
-                setShowVoiceModal(true);
-                setShowLangModal(false);
-              }}
+              className="mob-select-btn"
+              onClick={() => { setShowVoiceModal(true); setShowLangModal(false); }}
+              disabled={!hasSelectedLang}
+              aria-haspopup="listbox"
+              title={!hasSelectedLang ? 'Select a language first' : selectedVoiceName}
             >
-              <span className="mobile-select-val">
-                {hasSelectedVoice && activeVoiceMeta?.name
-                  ? getCleanVoiceName(activeVoiceMeta)
-                  : (combinedVoiceList.length === 0 && hasSelectedLang ? 'No voice' : 'Select voice')}
-              </span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              <span className="mob-select-val">{selectedVoiceName}</span>
+              <ChevronDown size={13} color="#64748B" strokeWidth={2.5} />
             </button>
           </div>
         </div>
 
-        {/* ── ENTER YOUR TEXT CARD ── */}
-        <div className="mobile-card mobile-text-card">
-          <div className="mobile-text-header">
-            <div className="mobile-text-title">
-              <FileText size={17} color="#E2E8F0" />
-              <span>Enter your text</span>
+        {/* ── TEXT INPUT CARD ───────────────────────────────────────── */}
+        <div className="mob-card mob-text-card">
+          <div className="mob-text-card-header">
+            <div className="mob-card-title">
+              <FileText size={15} color="#8B949E" />
+              <span>Your text</span>
             </div>
-            <div className="mobile-text-actions">
+            <div className="mob-text-actions">
               <button
                 type="button"
-                className="mobile-tc-btn"
+                className="mob-action-btn"
                 onClick={handleCopyText}
-                title="Copy text"
+                disabled={!text}
+                aria-label="Copy text to clipboard"
               >
-                {copiedText ? <Check size={14} color="#38BDF8" /> : <Copy size={14} color="#CBD5E1" />}
-                <span>{copiedText ? 'Copied' : 'Copy'}</span>
+                {copiedText
+                  ? <><Check size={12} color="#38BDF8" /><span>Copied</span></>
+                  : <><Copy size={12} color="#C9D1D9" /><span>Copy</span></>
+                }
               </button>
               <button
                 type="button"
-                className="mobile-tc-btn"
+                className="mob-action-btn mob-action-btn--danger"
                 onClick={handleDeleteText}
-                title="Delete text"
+                disabled={!text}
+                aria-label="Clear all text"
               >
-                <Trash2 size={14} color="#CBD5E1" />
-                <span>Delete</span>
+                <Trash2 size={12} color="#F87171" />
+                <span>Clear</span>
               </button>
             </div>
           </div>
 
-          <div className="mobile-textarea-wrap">
+          <div className="mob-textarea-wrap">
             <textarea
-              className="mobile-textarea"
+              id="mob-text-input"
+              className="mob-textarea"
               value={text}
-              onChange={(e) => setText(e.target.value.slice(0, 1000))}
-              placeholder="Type or paste your text here..."
-              maxLength={1000}
-              id="mobile-input-textarea"
+              onChange={(e) => setText(e.target.value.slice(0, charLimit))}
+              placeholder="Type or paste your text here to generate speech…"
+              maxLength={charLimit}
+              rows={5}
+              aria-label="Text to convert to speech"
             />
           </div>
 
-          <div className="mobile-counter-row">
-            <span>{charCount}/1000</span>
+          <div className="mob-char-row">
+            <span className={`mob-char-count${charAtLimit ? ' at-limit' : charNearLimit ? ' near-limit' : ''}`}>
+              {safeCharCount}/{charLimit}
+            </span>
           </div>
         </div>
 
-        {/* Error Notification if any */}
+        {/* ── ERROR BANNER ─────────────────────────────────────────── */}
         {errorMessage && (
-          <div className="mobile-error-banner">
-            <AlertCircle size={16} color="#F87171" style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: '0.82rem', color: '#F87171' }}>{errorMessage}</span>
-            <X
-              size={14}
-              color="#F87171"
-              style={{ cursor: 'pointer', flexShrink: 0 }}
+          <div className="mob-error-banner" role="alert">
+            <AlertCircle size={14} color="#F87171" style={{ flexShrink: 0 }} />
+            <span className="mob-error-text">{errorMessage}</span>
+            <button
+              type="button"
+              className="mob-error-close"
               onClick={() => setErrorMessage('')}
-            />
+              aria-label="Dismiss error"
+            >
+              <X size={13} color="#F87171" />
+            </button>
           </div>
         )}
 
-        {/* ── VOICE CONTROL CARD ── */}
-        <div className="mobile-card mobile-voice-control-card">
-          <div className="mobile-vc-title">
-            <EqualizerSlidersIcon size={18} color="#F0F6FC" />
-            <span>Voice control</span>
+        {/* ── VOICE CONTROLS CARD ──────────────────────────────────── */}
+        <div className="mob-card mob-controls-card">
+          <div className="mob-card-title mob-controls-title">
+            <EqualizerSlidersIcon size={16} color="#C9D1D9" />
+            <span>Voice Controls</span>
           </div>
 
-          {/* Speed Slider */}
-          <div className="mobile-slider-block">
-            <div className="mobile-slider-top-row">
-              <span>Speed</span>
-              <span className="mobile-slider-val">{speed.toFixed(1)}x</span>
+          {/* Speed */}
+          <div className="mob-slider-block">
+            <div className="mob-slider-header">
+              <span className="mob-slider-label">Speed</span>
+              <span className="mob-slider-val">{speed.toFixed(1)}×</span>
             </div>
             <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
+              type="range" min="0.5" max="2.0" step="0.1"
               value={speed}
               onChange={(e) => setSpeed(parseFloat(e.target.value))}
-              className="mobile-range-slider"
-              style={{
-                background: `linear-gradient(to right, #007AFF 0%, #007AFF ${((speed - 0.5) / 1.5) * 100}%, #1E293B ${((speed - 0.5) / 1.5) * 100}%, #1E293B 100%)`
-              }}
-              aria-label="Speed"
+              className="mob-slider"
+              style={sliderFill(speed, 0.5, 2.0)}
+              aria-label="Speech speed"
+              aria-valuemin={0.5} aria-valuemax={2.0} aria-valuenow={speed}
             />
-            <div className="mobile-slider-bottom-row">
-              <span>0.5x</span>
-            </div>
+            <div className="mob-slider-range"><span>0.5×</span><span>2.0×</span></div>
           </div>
 
-          {/* Pitch Slider */}
-          <div className="mobile-slider-block">
-            <div className="mobile-slider-top-row">
-              <span>Pitch</span>
-              <span className="mobile-slider-val">{pitch.toFixed(1)}x</span>
+          {/* Pitch */}
+          <div className="mob-slider-block">
+            <div className="mob-slider-header">
+              <span className="mob-slider-label">Pitch</span>
+              <span className="mob-slider-val">{pitch.toFixed(1)}×</span>
             </div>
             <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
+              type="range" min="0.5" max="2.0" step="0.1"
               value={pitch}
               onChange={(e) => setPitch(parseFloat(e.target.value))}
-              className="mobile-range-slider"
-              style={{
-                background: `linear-gradient(to right, #007AFF 0%, #007AFF ${((pitch - 0.5) / 1.5) * 100}%, #1E293B ${((pitch - 0.5) / 1.5) * 100}%, #1E293B 100%)`
-              }}
-              aria-label="Pitch"
+              className="mob-slider"
+              style={sliderFill(pitch, 0.5, 2.0)}
+              aria-label="Speech pitch"
+              aria-valuemin={0.5} aria-valuemax={2.0} aria-valuenow={pitch}
             />
-            <div className="mobile-slider-bottom-row">
-              <span>0.5x</span>
-            </div>
+            <div className="mob-slider-range"><span>0.5×</span><span>2.0×</span></div>
           </div>
 
-          {/* Volume Slider */}
-          <div className="mobile-slider-block">
-            <div className="mobile-slider-top-row">
-              <span>Volume</span>
-              <span className="mobile-slider-val">{volume}%</span>
+          {/* Volume */}
+          <div className="mob-slider-block">
+            <div className="mob-slider-header">
+              <span className="mob-slider-label">Volume</span>
+              <span className="mob-slider-val">{volume}%</span>
             </div>
             <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
+              type="range" min="0" max="100" step="1"
               value={volume}
-              onChange={(e) => setVolume(parseInt(e.target.value))}
-              className="mobile-range-slider"
-              style={{
-                background: `linear-gradient(to right, #007AFF 0%, #007AFF ${volume}%, #1E293B ${volume}%, #1E293B 100%)`
-              }}
-              aria-label="Volume"
+              onChange={(e) => setVolume(parseInt(e.target.value, 10))}
+              className="mob-slider"
+              style={sliderFill(volume, 0, 100)}
+              aria-label="Playback volume"
+              aria-valuemin={0} aria-valuemax={100} aria-valuenow={volume}
             />
-            <div className="mobile-slider-bottom-row" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>0%</span>
-              <span>100%</span>
-            </div>
+            <div className="mob-slider-range"><span>0%</span><span>100%</span></div>
           </div>
 
-          {/* Generate Voice Button */}
+          {/* Generate Button */}
           <button
             type="button"
-            className="mobile-generate-btn"
+            id="mob-btn-generate"
+            className="mob-generate-btn"
             onClick={handleGenerate}
             disabled={isGenerating || !text.trim()}
-            id="mobile-btn-generate-voice"
+            aria-busy={isGenerating}
           >
             {isGenerating ? (
-              <>
-                <RefreshCw size={18} className="spin-animation" color="#FFFFFF" />
-                <span>Generating Voice...</span>
-              </>
+              <><RefreshCw size={17} className="spin-animation" color="#FFFFFF" /><span>Generating…</span></>
             ) : (
-              <>
-                <Mic size={18} color="#FFFFFF" />
-                <span>Generate Voice</span>
-              </>
+              <><Mic size={17} color="#FFFFFF" /><span>Generate Voice</span></>
             )}
           </button>
         </div>
 
-        {/* ── GENERATED VOICE CARD ── */}
-        <div className="mobile-card mobile-audio-card">
-          <div className="mobile-audio-top">
+        {/* ── GENERATED AUDIO CARD ─────────────────────────────────── */}
+        <div className="mob-card mob-audio-card">
+          <div className="mob-audio-header">
             <button
               type="button"
-              className="mobile-play-circle-btn"
+              className={`mob-play-btn${isPlaying ? ' playing' : ''}`}
               onClick={togglePlay}
-              aria-label={isPlaying ? 'Pause generated audio' : 'Play generated audio'}
               disabled={isGenerating}
+              aria-label={isPlaying ? 'Pause audio' : (audioUrl ? 'Play audio' : 'Generate voice first')}
             >
-              {isPlaying ? (
-                <Pause size={14} fill="#FFFFFF" color="#FFFFFF" />
-              ) : (
-                <Play size={14} fill="#FFFFFF" color="#FFFFFF" style={{ marginLeft: '2px' }} />
-              )}
+              {isPlaying
+                ? <Pause size={16} fill="#FFFFFF" color="#FFFFFF" />
+                : <Play size={16} fill="#FFFFFF" color="#FFFFFF" style={{ marginLeft: '2px' }} />
+              }
             </button>
-            <span className="mobile-audio-label">Generated Voice</span>
+            <div className="mob-audio-meta">
+              <span className="mob-audio-title">Generated Voice</span>
+              {audioUrl && audioReady && <span className="mob-audio-status mob-audio-status--ready">Ready</span>}
+              {audioUrl && !audioReady && <span className="mob-audio-status">Loading…</span>}
+              {!audioUrl && <span className="mob-audio-status">Generate to play</span>}
+            </div>
           </div>
 
-          {/* Waveform Bars Scrubber */}
+          {/* Waveform Scrubber */}
           <div
-            className="mobile-waveform-area"
+            className={`mob-waveform${!audioUrl ? ' mob-waveform--empty' : ''}`}
             onClick={handleWaveformClick}
-            title={audioUrl ? 'Scrub audio' : 'Generate voice to play'}
+            role="slider"
+            aria-label="Audio position"
+            aria-valuenow={Math.round(currentRatio * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            tabIndex={audioUrl ? 0 : -1}
           >
-            {MOBILE_WAVE_BARS.map((heightPercent, index) => {
-              const barRatio = index / MOBILE_WAVE_BARS.length;
-              const currentRatio = duration > 0 ? currentTime / duration : 0;
-              const isPlayed = audioUrl && barRatio <= currentRatio;
+            {MOBILE_WAVE_BARS.map((h, i) => {
+              const isPlayed = !!audioUrl && (i / MOBILE_WAVE_BARS.length) <= currentRatio;
               return (
                 <div
-                  key={index}
-                  className={`mobile-wave-bar ${isPlayed ? 'played' : ''}`}
-                  style={{ height: `${heightPercent}%` }}
+                  key={i}
+                  className={`mob-wave-bar${isPlayed ? ' played' : ''}`}
+                  style={{ height: `${h}%` }}
                 />
               );
             })}
           </div>
 
-          {/* Bottom row: Time on left, Download MP3 on right */}
-          <div className="mobile-audio-bottom">
-            <span className="mobile-audio-time-text">
+          {/* Time + Download */}
+          <div className="mob-audio-footer">
+            <span className="mob-time-display">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
-
             <button
               type="button"
-              className="mobile-download-btn"
-              onClick={handleSaveVoice}
-              disabled={!audioUrl}
-              style={{ opacity: audioUrl ? 1 : 0.6 }}
-              title={audioUrl ? 'Download MP3' : 'Generate voice first to download'}
+              className="mob-download-btn"
+              onClick={handleDownloadAudio}
+              disabled={!audioUrl || !audioReady}
+              aria-label="Download MP3"
+              title={audioUrl ? 'Download MP3' : 'Generate voice first'}
             >
               <Download size={13} color="#FFFFFF" />
               <span>Download MP3</span>
@@ -529,109 +567,148 @@ export default function MobileDashboard({
 
       </main>
 
-      {/* ── LANGUAGE SELECTION MODAL (BOTTOM SHEET / POPUP) ── */}
+      {/* ═══ LANGUAGE MODAL ═══════════════════════════════════════════════════ */}
       {showLangModal && (
-        <div className="mobile-modal-overlay" onClick={() => setShowLangModal(false)}>
-          <div className="mobile-modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <span className="mobile-modal-title">Select Language</span>
+        <div
+          className="mob-modal-overlay"
+          onClick={() => { setShowLangModal(false); setLangSearch(''); }}
+          aria-modal="true" role="dialog"
+        >
+          <div className="mob-modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mob-modal-handle" />
+            <div className="mob-modal-header">
+              <span className="mob-modal-title">Select Language</span>
               <button
                 type="button"
-                className="mobile-modal-close"
-                onClick={() => setShowLangModal(false)}
+                className="mob-modal-close-btn"
+                onClick={() => { setShowLangModal(false); setLangSearch(''); }}
+                aria-label="Close"
               >
                 <X size={18} color="#8B949E" />
               </button>
             </div>
 
-            <div className="mobile-modal-search">
-              <Search size={15} color="#8B949E" />
+            <div className="mob-modal-search">
+              <Search size={14} color="#8B949E" />
               <input
                 type="text"
-                placeholder="Search language (e.g. Hindi, English)..."
+                placeholder="Search languages…"
                 value={langSearch}
                 onChange={(e) => setLangSearch(e.target.value)}
                 autoFocus
               />
+              {langSearch && (
+                <button type="button" className="mob-search-clear" onClick={() => setLangSearch('')} aria-label="Clear">
+                  <X size={12} color="#8B949E" />
+                </button>
+              )}
             </div>
 
-            <div className="mobile-modal-list">
-              {filteredLanguages.map((lang) => {
+            <div className="mob-modal-list" role="listbox">
+              {filteredLanguages.length > 0 ? filteredLanguages.map((lang) => {
                 const isSelected = selectedLang === lang.code && hasSelectedLang;
                 return (
                   <button
                     key={lang.code}
                     type="button"
-                    className={`mobile-modal-item ${isSelected ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`mob-modal-item${isSelected ? ' active' : ''}`}
                     onClick={() => {
                       if (setSelectedLang) setSelectedLang(lang.code);
                       setHasSelectedLang(true);
                       setHasSelectedVoice(false);
                       setSelectedVoiceId('');
                       setShowLangModal(false);
+                      setLangSearch('');
                     }}
                   >
-                    <span>{getCleanLangName(lang)}</span>
-                    {isSelected && <Check size={16} color="#38BDF8" />}
+                    <span className="mob-modal-item-main">
+                      <span className="mob-modal-item-name">{getCleanLangName(lang)}</span>
+                      {lang.nativeName && <span className="mob-modal-item-native">{lang.nativeName}</span>}
+                    </span>
+                    {isSelected && <Check size={15} color="#2F81F7" style={{ flexShrink: 0 }} />}
                   </button>
                 );
-              })}
+              }) : (
+                <div className="mob-modal-empty">No languages matching &quot;{langSearch}&quot;</div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── VOICE SELECTION MODAL (BOTTOM SHEET / POPUP) ── */}
+      {/* ═══ VOICE MODAL ══════════════════════════════════════════════════════ */}
       {showVoiceModal && (
-        <div className="mobile-modal-overlay" onClick={() => setShowVoiceModal(false)}>
-          <div className="mobile-modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <span className="mobile-modal-title">Select Voice</span>
+        <div
+          className="mob-modal-overlay"
+          onClick={() => { setShowVoiceModal(false); setVoiceSearch(''); }}
+          aria-modal="true" role="dialog"
+        >
+          <div className="mob-modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="mob-modal-handle" />
+            <div className="mob-modal-header">
+              <span className="mob-modal-title">Select Voice</span>
               <button
                 type="button"
-                className="mobile-modal-close"
-                onClick={() => setShowVoiceModal(false)}
+                className="mob-modal-close-btn"
+                onClick={() => { setShowVoiceModal(false); setVoiceSearch(''); }}
+                aria-label="Close"
               >
                 <X size={18} color="#8B949E" />
               </button>
             </div>
 
-            <div className="mobile-modal-search">
-              <Search size={15} color="#8B949E" />
+            <div className="mob-modal-search">
+              <Search size={14} color="#8B949E" />
               <input
                 type="text"
-                placeholder="Search voice name or gender..."
+                placeholder="Search voice or gender…"
                 value={voiceSearch}
                 onChange={(e) => setVoiceSearch(e.target.value)}
                 autoFocus
               />
+              {voiceSearch && (
+                <button type="button" className="mob-search-clear" onClick={() => setVoiceSearch('')} aria-label="Clear">
+                  <X size={12} color="#8B949E" />
+                </button>
+              )}
             </div>
 
-            <div className="mobile-modal-list">
-              {filteredVoices.length > 0 ? (
-                filteredVoices.map((voice) => {
-                  const isSelected = selectedVoiceId === voice.id && hasSelectedVoice;
-                  return (
-                    <button
-                      key={voice.id || voice.name}
-                      type="button"
-                      className={`mobile-modal-item ${isSelected ? 'active' : ''}`}
-                      onClick={() => {
-                        setSelectedVoiceId(voice.id || '');
-                        setHasSelectedVoice(true);
-                        setShowVoiceModal(false);
-                      }}
-                    >
-                      <span>{getCleanVoiceName(voice)}</span>
-                      {isSelected && <Check size={16} color="#38BDF8" />}
-                    </button>
-                  );
-                })
-              ) : (
-                <div style={{ padding: '24px 14px', fontSize: '0.85rem', color: '#8B949E', textAlign: 'center' }}>
+            <div className="mob-modal-list" role="listbox">
+              {filteredVoices.length > 0 ? filteredVoices.map((voice) => {
+                const isSelected = selectedVoiceId === voice.id && hasSelectedVoice;
+                return (
+                  <button
+                    key={voice.id || voice.name}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`mob-modal-item${isSelected ? ' active' : ''}`}
+                    onClick={() => {
+                      setSelectedVoiceId(voice.id || '');
+                      setHasSelectedVoice(true);
+                      setShowVoiceModal(false);
+                      setVoiceSearch('');
+                    }}
+                  >
+                    <span className="mob-modal-item-main">
+                      <span className="mob-modal-item-name">{getCleanVoiceName(voice)}</span>
+                      {voice.gender && (
+                        <span className={`mob-voice-badge${voice.gender === 'Female' ? ' female' : ' male'}`}>
+                          {voice.gender}
+                        </span>
+                      )}
+                    </span>
+                    {isSelected && <Check size={15} color="#2F81F7" style={{ flexShrink: 0 }} />}
+                  </button>
+                );
+              }) : (
+                <div className="mob-modal-empty">
                   {voiceSearch
                     ? `No voices matching "${voiceSearch}"`
-                    : `Native ${currentLangObj?.name || 'this language'} AI voice is currently under development.`}
+                    : `Native ${currentLangObj?.name || 'this language'} AI voice is under development.`
+                  }
                 </div>
               )}
             </div>
@@ -639,162 +716,136 @@ export default function MobileDashboard({
         </div>
       )}
 
-      {/* ── MOBILE NAVIGATION DRAWER ── */}
+      {/* ═══ NAVIGATION DRAWER ════════════════════════════════════════════════ */}
       {mobileMenuOpen && (
-        <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
-          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-drawer-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#FFFFFF', letterSpacing: '0.04em' }}>
-                  AI VOICE INDIA
-                </span>
+        <div
+          className="mob-drawer-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-modal="true" role="dialog"
+        >
+          <div className="mob-drawer" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="mob-drawer-header">
+              <div className="mob-drawer-brand">
+                <SoundwaveIcon size={20} color="#2F81F7" />
+                <span className="mob-drawer-brand-text">AI VOICE INDIA</span>
               </div>
               <button
                 type="button"
+                className="mob-drawer-close"
                 onClick={() => setMobileMenuOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                aria-label="Close menu"
               >
-                <X size={20} color="#CBD5E1" />
+                <X size={18} color="#8B949E" />
               </button>
             </div>
 
-            <nav className="mobile-drawer-nav">
-              <button
-                type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'home' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('home');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Home size={18} />
-                <span>Home</span>
-              </button>
+            {/* User info strip */}
+            {user && (
+              <div className="mob-drawer-user">
+                <div className="mob-drawer-avatar">
+                  {user.name ? user.name.charAt(0).toUpperCase() : <User size={14} color="#8B949E" />}
+                </div>
+                <div className="mob-drawer-user-info">
+                  <span className="mob-drawer-user-name">
+                    {user.name || user.email?.split('@')[0] || 'User'}
+                  </span>
+                  <span className="mob-drawer-user-credits">
+                    {typeof user.characters_remaining === 'number'
+                      ? `${user.characters_remaining.toLocaleString()} chars left`
+                      : 'Credits loading…'
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="mob-drawer-divider" />
+
+            <nav className="mob-drawer-nav" aria-label="Main navigation">
+              {[
+                { id: 'home', label: 'Home', Icon: Home },
+                { id: 'pdf', label: 'PDF to Voice', Icon: FileCheck },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`mob-drawer-btn${activeMenuTab === id ? ' active' : ''}`}
+                  onClick={() => { setActiveMenuTab(id); setActiveModal(null); setMobileMenuOpen(false); }}
+                >
+                  <Icon size={17} /><span>{label}</span>
+                </button>
+              ))}
 
               <button
                 type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'pdf' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('pdf');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <FileCheck size={18} />
-                <span>PDF to Voice</span>
-              </button>
-
-              <button
-                type="button"
-                className="mobile-drawer-btn"
+                className="mob-drawer-btn"
                 onClick={() => {
                   if (setActiveTab) setActiveTab('pricing');
                   else setActiveModal('pricing');
                   setMobileMenuOpen(false);
                 }}
               >
-                <Crown size={18} />
-                <span>Upgrade</span>
+                <Crown size={17} /><span>Upgrade Plan</span>
               </button>
 
               <button
                 type="button"
-                className="mobile-drawer-btn"
-                onClick={() => {
-                  setActiveModal('api');
-                  setMobileMenuOpen(false);
-                }}
+                className="mob-drawer-btn"
+                onClick={() => { setActiveModal('api'); setMobileMenuOpen(false); }}
               >
-                <Code size={18} />
-                <span>API Access</span>
+                <Code size={17} /><span>API Access</span>
               </button>
 
-              <div style={{ height: '1px', background: '#1E293B', margin: '8px 0' }} />
+              <div className="mob-drawer-divider" />
+              <span className="mob-drawer-section-label">AI Tools</span>
 
-              <span style={{ fontSize: '0.72rem', color: '#64748B', paddingLeft: '14px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                AI Tools
-              </span>
+              {[
+                { id: 'ai-assistant', label: 'AI Assistant', Icon: Sparkles },
+                { id: 'voice-effects', label: 'Voice Effects', Icon: Wand2 },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`mob-drawer-btn${activeMenuTab === id ? ' active' : ''}`}
+                  onClick={() => { setActiveMenuTab(id); setActiveModal(null); setMobileMenuOpen(false); }}
+                >
+                  <Icon size={17} /><span>{label}</span>
+                </button>
+              ))}
+
+              <div className="mob-drawer-divider" />
 
               <button
                 type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'ai-assistant' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('ai-assistant');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
+                className="mob-drawer-btn"
+                onClick={() => { setActiveModal('creations'); setMobileMenuOpen(false); }}
               >
-                <Sparkles size={18} />
-                <span>AI Assistant</span>
+                <Clock size={17} /><span>History</span>
               </button>
+
+              {[
+                { id: 'help', label: 'Help & Support', Icon: Headphones },
+                { id: 'settings', label: 'Settings', Icon: Settings },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`mob-drawer-btn${activeMenuTab === id ? ' active' : ''}`}
+                  onClick={() => { setActiveMenuTab(id); setActiveModal(null); setMobileMenuOpen(false); }}
+                >
+                  <Icon size={17} /><span>{label}</span>
+                </button>
+              ))}
+
+              <div className="mob-drawer-divider" />
 
               <button
                 type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'voice-effects' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('voice-effects');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
+                className="mob-drawer-btn mob-drawer-btn--signout"
+                onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}
               >
-                <Wand2 size={18} />
-                <span>Voice Effects</span>
-              </button>
-
-              <div style={{ height: '1px', background: '#1E293B', margin: '8px 0' }} />
-
-              <button
-                type="button"
-                className="mobile-drawer-btn"
-                onClick={() => {
-                  setActiveModal('creations');
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Clock size={18} />
-                <span>History</span>
-              </button>
-
-              <button
-                type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'help' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('help');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Headphones size={18} />
-                <span>Help & Support</span>
-              </button>
-
-              <button
-                type="button"
-                className={`mobile-drawer-btn ${activeMenuTab === 'settings' ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveMenuTab('settings');
-                  setActiveModal(null);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Settings size={18} />
-                <span>Settings</span>
-              </button>
-
-              <div style={{ height: '1px', background: '#1E293B', margin: '14px 0 8px 0' }} />
-
-              <button
-                type="button"
-                className="mobile-drawer-btn"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleSignOut();
-                }}
-                style={{ color: '#F87171' }}
-              >
-                <LogOut size={18} />
-                <span>Sign Out</span>
+                <LogOut size={17} /><span>Sign Out</span>
               </button>
             </nav>
           </div>

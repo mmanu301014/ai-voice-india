@@ -8,7 +8,7 @@ import {
 import UpgradeModal from './UpgradeModal';
 
 // ── Equalizer Sliders Icon ───────────────────────────────────────────────────
-function EqualizerSlidersIcon({ size = 18, color = '#1E3A5F' }) {
+function EqualizerSlidersIcon({ size = 18, color = '#2378E8' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2" strokeLinecap="round" />
@@ -20,7 +20,7 @@ function EqualizerSlidersIcon({ size = 18, color = '#1E3A5F' }) {
 }
 
 // ── Soundwave Logo Icon ──────────────────────────────────────────────────────
-function SoundwaveIcon({ size = 20, color = '#2F81F7' }) {
+function SoundwaveIcon({ size = 20, color = '#2378E8' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="2" y="11" width="3.8" height="10" rx="1.9" fill={color} />
@@ -42,7 +42,7 @@ const MOBILE_WAVE_BARS = [
 function sliderFill(value, min, max) {
   const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return {
-    background: `linear-gradient(to right, #2563EB 0%, #2563EB ${pct}%, #D1D9E6 ${pct}%, #D1D9E6 100%)`
+    background: `linear-gradient(to right, #2378E8 0%, #2378E8 ${pct}%, #D6E8FA ${pct}%, #D6E8FA 100%)`
   };
 }
 
@@ -272,11 +272,11 @@ export default function MobileDashboard({
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Open navigation menu"
         >
-          <Menu size={20} color="#0F1B2D" />
+          <Menu size={20} color="#FFFFFF" />
         </button>
 
         <div className="mob-header-brand">
-          <SoundwaveIcon size={17} color="#2563EB" />
+          <SoundwaveIcon size={17} color="#2378E8" />
           <span className="mob-header-brand-text">AI VOICE INDIA</span>
         </div>
 
@@ -286,7 +286,7 @@ export default function MobileDashboard({
           onClick={handleSignOut}
           aria-label="Sign out"
         >
-          <User size={13} color="#0F1B2D" />
+          <User size={13} color="#FFFFFF" />
           <span>Sign out</span>
         </button>
       </header>
@@ -308,7 +308,7 @@ export default function MobileDashboard({
           {/* Language */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Globe size={13} color="#1E3A5F" />
+              <Globe size={13} color="#2378E8" />
               <span>Language</span>
             </div>
             <button
@@ -318,14 +318,14 @@ export default function MobileDashboard({
               aria-haspopup="listbox"
             >
               <span className="mob-select-val" title={selectedLangName}>{selectedLangName}</span>
-              <ChevronDown size={13} color="#2563EB" strokeWidth={2.5} />
+              <ChevronDown size={13} color="#2378E8" strokeWidth={2.5} />
             </button>
           </div>
 
           {/* Voice */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Mic size={13} color="#1E3A5F" />
+              <Mic size={13} color="#2378E8" />
               <span>Voice</span>
             </div>
             <button
@@ -337,7 +337,7 @@ export default function MobileDashboard({
               title={!hasSelectedLang ? 'Select a language first' : selectedVoiceName}
             >
               <span className="mob-select-val">{selectedVoiceName}</span>
-              <ChevronDown size={13} color="#2563EB" strokeWidth={2.5} />
+              <ChevronDown size={13} color="#2378E8" strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -346,7 +346,7 @@ export default function MobileDashboard({
         <div className="mob-card mob-text-card">
           <div className="mob-text-card-header">
             <div className="mob-card-title">
-              <FileText size={15} color="#1E3A5F" />
+              <FileText size={15} color="#2378E8" />
               <span>Your text</span>
             </div>
             <div className="mob-text-actions">
@@ -358,8 +358,8 @@ export default function MobileDashboard({
                 aria-label="Copy text to clipboard"
               >
                 {copiedText
-                  ? <><Check size={12} color="#2563EB" /><span>Copied</span></>
-                  : <><Copy size={12} color="#1E3A5F" /><span>Copy</span></>
+                  ? <><Check size={12} color="#2378E8" /><span>Copied</span></>
+                  : <><Copy size={12} color="#2378E8" /><span>Copy</span></>
                 }
               </button>
               <button
@@ -414,7 +414,7 @@ export default function MobileDashboard({
         {/* ── VOICE CONTROLS CARD ──────────────────────────────────── */}
         <div className="mob-card mob-controls-card">
           <div className="mob-card-title mob-controls-title">
-            <EqualizerSlidersIcon size={16} color="#1E3A5F" />
+            <EqualizerSlidersIcon size={16} color="#2378E8" />
             <span>Voice Controls</span>
           </div>
 
@@ -500,8 +500,8 @@ export default function MobileDashboard({
               aria-label={isPlaying ? 'Pause audio' : (audioUrl ? 'Play audio' : 'Generate voice first')}
             >
               {isPlaying
-                ? <Pause size={16} fill="#FFFFFF" color="#FFFFFF" />
-                : <Play size={16} fill="#FFFFFF" color="#FFFFFF" style={{ marginLeft: '2px' }} />
+                ? <Pause size={16} fill="currentColor" color="currentColor" />
+                : <Play size={16} fill="currentColor" color="currentColor" style={{ marginLeft: '2px' }} />
               }
             </button>
             <div className="mob-audio-meta">
@@ -616,7 +616,7 @@ export default function MobileDashboard({
                       <span className="mob-modal-item-name">{getCleanLangName(lang)}</span>
                       {lang.nativeName && <span className="mob-modal-item-native">{lang.nativeName}</span>}
                     </span>
-                    {isSelected && <Check size={15} color="#2F81F7" style={{ flexShrink: 0 }} />}
+                    {isSelected && <Check size={15} color="#2378E8" style={{ flexShrink: 0 }} />}
                   </button>
                 );
               }) : (
@@ -689,7 +689,7 @@ export default function MobileDashboard({
                         </span>
                       )}
                     </span>
-                    {isSelected && <Check size={15} color="#2F81F7" style={{ flexShrink: 0 }} />}
+                    {isSelected && <Check size={15} color="#2378E8" style={{ flexShrink: 0 }} />}
                   </button>
                 );
               }) : (

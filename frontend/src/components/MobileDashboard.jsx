@@ -8,7 +8,7 @@ import {
 import UpgradeModal from './UpgradeModal';
 
 // ── Equalizer Sliders Icon ───────────────────────────────────────────────────
-function EqualizerSlidersIcon({ size = 18, color = '#C9D1D9' }) {
+function EqualizerSlidersIcon({ size = 18, color = '#1E3A5F' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2" strokeLinecap="round" />
@@ -42,7 +42,7 @@ const MOBILE_WAVE_BARS = [
 function sliderFill(value, min, max) {
   const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return {
-    background: `linear-gradient(to right, #2F81F7 0%, #2F81F7 ${pct}%, #21262d ${pct}%, #21262d 100%)`
+    background: `linear-gradient(to right, #2563EB 0%, #2563EB ${pct}%, #D1D9E6 ${pct}%, #D1D9E6 100%)`
   };
 }
 
@@ -272,11 +272,11 @@ export default function MobileDashboard({
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Open navigation menu"
         >
-          <Menu size={20} color="#C9D1D9" />
+          <Menu size={20} color="#0F1B2D" />
         </button>
 
         <div className="mob-header-brand">
-          <SoundwaveIcon size={17} color="#2F81F7" />
+          <SoundwaveIcon size={17} color="#2563EB" />
           <span className="mob-header-brand-text">AI VOICE INDIA</span>
         </div>
 
@@ -286,7 +286,7 @@ export default function MobileDashboard({
           onClick={handleSignOut}
           aria-label="Sign out"
         >
-          <User size={13} color="#C9D1D9" />
+          <User size={13} color="#0F1B2D" />
           <span>Sign out</span>
         </button>
       </header>
@@ -294,32 +294,21 @@ export default function MobileDashboard({
       {/* ═══ MAIN CONTENT ════════════════════════════════════════════ */}
       <main className="mob-content">
 
-        {/* ── HERO ─────────────────────────────────────────────────── */}
-        <section className="mob-hero">
-          <div className="mob-peacock-wrap">
-            <div className="mob-peacock-glow" />
-            <img
-              src="/peacock-logo-transparent.png"
-              alt="AI Voice India"
-              className="mob-peacock-img"
-            />
-          </div>
-          <div className="mob-hero-text">
-            <h1 className="mob-hero-heading">
-              Create something <span className="mob-accent-blue">new today</span>
-            </h1>
-            <p className="mob-hero-subtitle">
-              Generate premium AI voiceovers in Indian languages.
-            </p>
-          </div>
-        </section>
+        {/* ── CENTERED WAVEFORM LOGO ──────────────────────────────── */}
+        <div className="mob-logo-center">
+          <img
+            src="/waveform-logo.png"
+            alt="AI Voice India"
+            className="mob-waveform-logo"
+          />
+        </div>
 
         {/* ── SELECTORS ROW ─────────────────────────────────────────── */}
         <div className="mob-selectors-row">
           {/* Language */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Globe size={13} color="#8B949E" />
+              <Globe size={13} color="#1E3A5F" />
               <span>Language</span>
             </div>
             <button
@@ -329,14 +318,14 @@ export default function MobileDashboard({
               aria-haspopup="listbox"
             >
               <span className="mob-select-val" title={selectedLangName}>{selectedLangName}</span>
-              <ChevronDown size={13} color="#64748B" strokeWidth={2.5} />
+              <ChevronDown size={13} color="#2563EB" strokeWidth={2.5} />
             </button>
           </div>
 
           {/* Voice */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Mic size={13} color="#8B949E" />
+              <Mic size={13} color="#1E3A5F" />
               <span>Voice</span>
             </div>
             <button
@@ -348,7 +337,7 @@ export default function MobileDashboard({
               title={!hasSelectedLang ? 'Select a language first' : selectedVoiceName}
             >
               <span className="mob-select-val">{selectedVoiceName}</span>
-              <ChevronDown size={13} color="#64748B" strokeWidth={2.5} />
+              <ChevronDown size={13} color="#2563EB" strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -357,7 +346,7 @@ export default function MobileDashboard({
         <div className="mob-card mob-text-card">
           <div className="mob-text-card-header">
             <div className="mob-card-title">
-              <FileText size={15} color="#8B949E" />
+              <FileText size={15} color="#1E3A5F" />
               <span>Your text</span>
             </div>
             <div className="mob-text-actions">
@@ -369,8 +358,8 @@ export default function MobileDashboard({
                 aria-label="Copy text to clipboard"
               >
                 {copiedText
-                  ? <><Check size={12} color="#38BDF8" /><span>Copied</span></>
-                  : <><Copy size={12} color="#C9D1D9" /><span>Copy</span></>
+                  ? <><Check size={12} color="#2563EB" /><span>Copied</span></>
+                  : <><Copy size={12} color="#1E3A5F" /><span>Copy</span></>
                 }
               </button>
               <button
@@ -425,7 +414,7 @@ export default function MobileDashboard({
         {/* ── VOICE CONTROLS CARD ──────────────────────────────────── */}
         <div className="mob-card mob-controls-card">
           <div className="mob-card-title mob-controls-title">
-            <EqualizerSlidersIcon size={16} color="#C9D1D9" />
+            <EqualizerSlidersIcon size={16} color="#1E3A5F" />
             <span>Voice Controls</span>
           </div>
 
@@ -584,12 +573,12 @@ export default function MobileDashboard({
                 onClick={() => { setShowLangModal(false); setLangSearch(''); }}
                 aria-label="Close"
               >
-                <X size={18} color="#8B949E" />
+                <X size={18} color="#64748B" />
               </button>
             </div>
 
             <div className="mob-modal-search">
-              <Search size={14} color="#8B949E" />
+              <Search size={14} color="#64748B" />
               <input
                 type="text"
                 placeholder="Search languages…"
@@ -599,7 +588,7 @@ export default function MobileDashboard({
               />
               {langSearch && (
                 <button type="button" className="mob-search-clear" onClick={() => setLangSearch('')} aria-label="Clear">
-                  <X size={12} color="#8B949E" />
+                  <X size={12} color="#64748B" />
                 </button>
               )}
             </div>
@@ -655,12 +644,12 @@ export default function MobileDashboard({
                 onClick={() => { setShowVoiceModal(false); setVoiceSearch(''); }}
                 aria-label="Close"
               >
-                <X size={18} color="#8B949E" />
+                <X size={18} color="#64748B" />
               </button>
             </div>
 
             <div className="mob-modal-search">
-              <Search size={14} color="#8B949E" />
+              <Search size={14} color="#64748B" />
               <input
                 type="text"
                 placeholder="Search voice or gender…"
@@ -670,7 +659,7 @@ export default function MobileDashboard({
               />
               {voiceSearch && (
                 <button type="button" className="mob-search-clear" onClick={() => setVoiceSearch('')} aria-label="Clear">
-                  <X size={12} color="#8B949E" />
+                  <X size={12} color="#64748B" />
                 </button>
               )}
             </div>
@@ -727,7 +716,7 @@ export default function MobileDashboard({
             {/* Header */}
             <div className="mob-drawer-header">
               <div className="mob-drawer-brand">
-                <SoundwaveIcon size={20} color="#2F81F7" />
+                <SoundwaveIcon size={20} color="#2563EB" />
                 <span className="mob-drawer-brand-text">AI VOICE INDIA</span>
               </div>
               <button
@@ -736,7 +725,7 @@ export default function MobileDashboard({
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Close menu"
               >
-                <X size={18} color="#8B949E" />
+                <X size={18} color="#64748B" />
               </button>
             </div>
 
@@ -744,7 +733,7 @@ export default function MobileDashboard({
             {user && (
               <div className="mob-drawer-user">
                 <div className="mob-drawer-avatar">
-                  {user.name ? user.name.charAt(0).toUpperCase() : <User size={14} color="#8B949E" />}
+                  {user.name ? user.name.charAt(0).toUpperCase() : <User size={14} color="#64748B" />}
                 </div>
                 <div className="mob-drawer-user-info">
                   <span className="mob-drawer-user-name">

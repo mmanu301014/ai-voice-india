@@ -8,10 +8,10 @@ import {
 import UpgradeModal from './UpgradeModal';
 
 // ── Equalizer Sliders Icon ───────────────────────────────────────────────────
-function EqualizerSlidersIcon({ size = 18, color = '#2378E8' }) {
+function EqualizerSlidersIcon({ size = 18, color = '#0A192F' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
       <circle cx="4" cy="9" r="2.5" fill={color} />
       <circle cx="12" cy="15" r="2.5" fill={color} />
       <circle cx="20" cy="10" r="2.5" fill={color} />
@@ -272,11 +272,11 @@ export default function MobileDashboard({
           onClick={() => setMobileMenuOpen(true)}
           aria-label="Open navigation menu"
         >
-          <Menu size={20} color="#FFFFFF" />
+          <Menu size={20} color="#0A192F" strokeWidth={2.2} />
         </button>
 
         <div className="mob-header-brand">
-          <SoundwaveIcon size={17} color="#2378E8" />
+          <SoundwaveIcon size={20} color="#2378E8" />
           <span className="mob-header-brand-text">AI VOICE INDIA</span>
         </div>
 
@@ -286,7 +286,7 @@ export default function MobileDashboard({
           onClick={handleSignOut}
           aria-label="Sign out"
         >
-          <User size={13} color="#FFFFFF" />
+          <User size={14} color="#0A192F" strokeWidth={2.2} />
           <span>Sign out</span>
         </button>
       </header>
@@ -294,13 +294,10 @@ export default function MobileDashboard({
       {/* ═══ MAIN CONTENT ════════════════════════════════════════════ */}
       <main className="mob-content">
 
-        {/* ── CENTERED WAVEFORM LOGO ──────────────────────────────── */}
-        <div className="mob-logo-center">
-          <img
-            src="/waveform-logo.png"
-            alt="AI Voice India"
-            className="mob-waveform-logo"
-          />
+        {/* ── MAIN HEADING ─────────────────────────────────────────── */}
+        <div className="mob-hero-section">
+          <h1 className="mob-hero-title">Turn Text into Speech</h1>
+          <p className="mob-hero-subtitle">Natural AI voices in Indian languages</p>
         </div>
 
         {/* ── SELECTORS ROW ─────────────────────────────────────────── */}
@@ -308,8 +305,8 @@ export default function MobileDashboard({
           {/* Language */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Globe size={13} color="#2378E8" />
-              <span>Language</span>
+              <Globe size={18} color="#0A192F" strokeWidth={2.2} />
+              <span>LANGUAGE</span>
             </div>
             <button
               type="button"
@@ -318,15 +315,15 @@ export default function MobileDashboard({
               aria-haspopup="listbox"
             >
               <span className="mob-select-val" title={selectedLangName}>{selectedLangName}</span>
-              <ChevronDown size={13} color="#2378E8" strokeWidth={2.5} />
+              <ChevronDown size={15} color="#2378E8" strokeWidth={2.5} />
             </button>
           </div>
 
           {/* Voice */}
           <div className="mob-card mob-selector-card">
             <div className="mob-selector-label">
-              <Mic size={13} color="#2378E8" />
-              <span>Voice</span>
+              <Mic size={18} color="#0A192F" strokeWidth={2.2} />
+              <span>VOICE</span>
             </div>
             <button
               type="button"
@@ -337,7 +334,7 @@ export default function MobileDashboard({
               title={!hasSelectedLang ? 'Select a language first' : selectedVoiceName}
             >
               <span className="mob-select-val">{selectedVoiceName}</span>
-              <ChevronDown size={13} color="#2378E8" strokeWidth={2.5} />
+              <ChevronDown size={15} color="#2378E8" strokeWidth={2.5} />
             </button>
           </div>
         </div>
@@ -346,20 +343,20 @@ export default function MobileDashboard({
         <div className="mob-card mob-text-card">
           <div className="mob-text-card-header">
             <div className="mob-card-title">
-              <FileText size={15} color="#2378E8" />
+              <FileText size={18} color="#0A192F" strokeWidth={2.2} />
               <span>Your text</span>
             </div>
             <div className="mob-text-actions">
               <button
                 type="button"
-                className="mob-action-btn"
+                className="mob-action-btn mob-action-btn--copy"
                 onClick={handleCopyText}
                 disabled={!text}
                 aria-label="Copy text to clipboard"
               >
                 {copiedText
-                  ? <><Check size={12} color="#2378E8" /><span>Copied</span></>
-                  : <><Copy size={12} color="#2378E8" /><span>Copy</span></>
+                  ? <><Check size={13} color="#2378E8" strokeWidth={2.5} /><span>Copied</span></>
+                  : <><Copy size={13} color="#2378E8" strokeWidth={2.2} /><span>Copy</span></>
                 }
               </button>
               <button
@@ -369,7 +366,7 @@ export default function MobileDashboard({
                 disabled={!text}
                 aria-label="Clear all text"
               >
-                <Trash2 size={12} color="#F87171" />
+                <Trash2 size={13} color="#DC2626" strokeWidth={2.2} />
                 <span>Clear</span>
               </button>
             </div>
@@ -381,7 +378,7 @@ export default function MobileDashboard({
               className="mob-textarea"
               value={text}
               onChange={(e) => setText(e.target.value.slice(0, charLimit))}
-              placeholder="Type or paste your text here to generate speech…"
+              placeholder="Type or paste your text here to generate speech..."
               maxLength={charLimit}
               rows={5}
               aria-label="Text to convert to speech"
@@ -414,7 +411,7 @@ export default function MobileDashboard({
         {/* ── VOICE CONTROLS CARD ──────────────────────────────────── */}
         <div className="mob-card mob-controls-card">
           <div className="mob-card-title mob-controls-title">
-            <EqualizerSlidersIcon size={16} color="#2378E8" />
+            <EqualizerSlidersIcon size={18} color="#0A192F" />
             <span>Voice Controls</span>
           </div>
 
@@ -752,9 +749,63 @@ export default function MobileDashboard({
             <div className="mob-drawer-divider" />
 
             <nav className="mob-drawer-nav" aria-label="Main navigation">
+              <button
+                type="button"
+                className={`mob-drawer-btn${activeMenuTab === 'home' ? ' active' : ''}`}
+                onClick={() => { setActiveMenuTab('home'); setActiveModal(null); setMobileMenuOpen(false); }}
+              >
+                <Home size={17} /><span>Home</span>
+              </button>
+
+              <button
+                type="button"
+                className="mob-drawer-btn"
+                onClick={() => {
+                  if (setActiveTab) setActiveTab('languages');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Globe size={17} /><span>Languages</span>
+              </button>
+
+              <button
+                type="button"
+                className="mob-drawer-btn"
+                onClick={() => {
+                  if (setActiveTab) setActiveTab('pricing');
+                  else setActiveModal('pricing');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <Crown size={17} /><span>Pricing & Plans</span>
+              </button>
+
+              <button
+                type="button"
+                className="mob-drawer-btn"
+                onClick={() => {
+                  if (setActiveTab) setActiveTab('about');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                <FileText size={17} /><span>About</span>
+              </button>
+
+              <button
+                type="button"
+                className={`mob-drawer-btn${activeMenuTab === 'help' ? ' active' : ''}`}
+                onClick={() => { setActiveMenuTab('help'); setActiveModal(null); setMobileMenuOpen(false); }}
+              >
+                <Headphones size={17} /><span>Help & Support</span>
+              </button>
+
+              <div className="mob-drawer-divider" />
+              <span className="mob-drawer-section-label">Features & Tools</span>
+
               {[
-                { id: 'home', label: 'Home', Icon: Home },
                 { id: 'pdf', label: 'PDF to Voice', Icon: FileCheck },
+                { id: 'ai-assistant', label: 'AI Assistant', Icon: Sparkles },
+                { id: 'voice-effects', label: 'Voice Effects', Icon: Wand2 },
               ].map(({ id, label, Icon }) => (
                 <button
                   key={id}
@@ -770,12 +821,19 @@ export default function MobileDashboard({
                 type="button"
                 className="mob-drawer-btn"
                 onClick={() => {
-                  if (setActiveTab) setActiveTab('pricing');
-                  else setActiveModal('pricing');
+                  if (setActiveTab) setActiveTab('voices');
                   setMobileMenuOpen(false);
                 }}
               >
-                <Crown size={17} /><span>Upgrade Plan</span>
+                <Mic size={17} /><span>Voice Library</span>
+              </button>
+
+              <button
+                type="button"
+                className="mob-drawer-btn"
+                onClick={() => { setActiveModal('creations'); setMobileMenuOpen(false); }}
+              >
+                <Clock size={17} /><span>History</span>
               </button>
 
               <button
@@ -786,46 +844,13 @@ export default function MobileDashboard({
                 <Code size={17} /><span>API Access</span>
               </button>
 
-              <div className="mob-drawer-divider" />
-              <span className="mob-drawer-section-label">AI Tools</span>
-
-              {[
-                { id: 'ai-assistant', label: 'AI Assistant', Icon: Sparkles },
-                { id: 'voice-effects', label: 'Voice Effects', Icon: Wand2 },
-              ].map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`mob-drawer-btn${activeMenuTab === id ? ' active' : ''}`}
-                  onClick={() => { setActiveMenuTab(id); setActiveModal(null); setMobileMenuOpen(false); }}
-                >
-                  <Icon size={17} /><span>{label}</span>
-                </button>
-              ))}
-
-              <div className="mob-drawer-divider" />
-
               <button
                 type="button"
-                className="mob-drawer-btn"
-                onClick={() => { setActiveModal('creations'); setMobileMenuOpen(false); }}
+                className={`mob-drawer-btn${activeMenuTab === 'settings' ? ' active' : ''}`}
+                onClick={() => { setActiveMenuTab('settings'); setActiveModal(null); setMobileMenuOpen(false); }}
               >
-                <Clock size={17} /><span>History</span>
+                <Settings size={17} /><span>Settings</span>
               </button>
-
-              {[
-                { id: 'help', label: 'Help & Support', Icon: Headphones },
-                { id: 'settings', label: 'Settings', Icon: Settings },
-              ].map(({ id, label, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`mob-drawer-btn${activeMenuTab === id ? ' active' : ''}`}
-                  onClick={() => { setActiveMenuTab(id); setActiveModal(null); setMobileMenuOpen(false); }}
-                >
-                  <Icon size={17} /><span>{label}</span>
-                </button>
-              ))}
 
               <div className="mob-drawer-divider" />
 

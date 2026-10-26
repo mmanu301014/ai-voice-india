@@ -3,7 +3,6 @@ export const CREATOR_MODES = [
     id: 'youtube',
     name: 'YouTube',
     icon: 'Youtube',
-    tag: 'Longform & Explainer',
     suggestedStyle: 'Storytelling',
     suggestedSpeed: 1.0,
     suggestedPitch: 0.0,

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Globe, Mic, FileText, Copy, Trash2, Check, Download,
   Play, Pause, RefreshCw, AlertCircle, X, Search, User, Menu,
@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import UpgradeModal from "./UpgradeModal";
 
-function EqualizerSlidersIcon({ size = 18, color = "#60B8FF" }) {
+function EqualizerSlidersIcon({ size = 18, color = "#72C7FF" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M4 3V21M12 3V21M20 3V21" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
@@ -18,7 +18,7 @@ function EqualizerSlidersIcon({ size = 18, color = "#60B8FF" }) {
   );
 }
 
-function SoundwaveIcon({ size = 20, color = "#60B8FF" }) {
+function SoundwaveIcon({ size = 20, color = "#72C7FF" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="2" y="11" width="3.8" height="10" rx="1.9" fill={color} />
@@ -38,7 +38,7 @@ const MOBILE_WAVE_BARS = [
 function sliderFill(value, min, max) {
   const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return {
-    background: `linear-gradient(to right, #60B8FF 0%, #60B8FF ${pct}%, #1E2D45 ${pct}%, #1E2D45 100%)`
+    background: `linear-gradient(to right, #72C7FF 0%, #72C7FF ${pct}%, #303947 ${pct}%, #303947 100%)`
   };
 }
 
@@ -258,7 +258,7 @@ export default function MobileDashboard({
         </button>
 
         <div className="mob-header-brand">
-          <SoundwaveIcon size={20} color="#60B8FF" />
+          <SoundwaveIcon size={20} color="#72C7FF" />
           <span className="mob-header-brand-text">AI VOICE INDIA</span>
         </div>
 
@@ -268,7 +268,7 @@ export default function MobileDashboard({
           onClick={handleSignOut}
           aria-label="Log out"
         >
-          <LogOut size={14} color="#60B8FF" strokeWidth={2.2} />
+          <LogOut size={14} color="#72C7FF" strokeWidth={2.2} />
           <span>Log out</span>
         </button>
       </header>
@@ -281,24 +281,45 @@ export default function MobileDashboard({
 
         <div className="mob-card mob-selector-card mob-selector-card--full">
           <div className="mob-selector-label">
-            <Globe size={18} color="#60B8FF" strokeWidth={2.2} />
+            <Globe size={18} color="#72C7FF" strokeWidth={2.2} />
             <span>LANGUAGE</span>
           </div>
-          <button
-            type="button"
-            className="mob-select-btn"
-            onClick={() => { setShowLangModal(true); }}
-            aria-haspopup="listbox"
-          >
-            <span className="mob-select-val" title={selectedLangName}>{selectedLangName}</span>
-            <ChevronDown size={15} color="#60B8FF" strokeWidth={2.5} />
-          </button>
+          <div className="mob-lang-chips" role="listbox" aria-label="Available languages">
+            {availableLanguages && availableLanguages.length > 0 ? (
+              availableLanguages.map((lang) => {
+                const isSelected = selectedLang === lang.code && hasSelectedLang;
+                const cleanName = getCleanLangName ? getCleanLangName(lang) : (lang.name || lang.code);
+                return (
+                  <button
+                    key={lang.code || lang.name}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`mob-lang-chip${isSelected ? " selected" : ""}`}
+                    onClick={() => {
+                      if (setSelectedLang) setSelectedLang(lang.code);
+                      setHasSelectedLang(true);
+                      setHasSelectedVoice(false);
+                      setSelectedVoiceId("");
+                    }}
+                  >
+                    <span className="mob-lang-chip-name">{cleanName}</span>
+                    {lang.nativeName && lang.nativeName !== cleanName && (
+                      <span className="mob-lang-chip-native">({lang.nativeName})</span>
+                    )}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="mob-lang-chip-loading">Loading languages...</div>
+            )}
+          </div>
         </div>
 
         <div className="mob-card mob-text-card">
           <div className="mob-text-card-header">
             <div className="mob-card-title">
-              <FileText size={18} color="#60B8FF" strokeWidth={2.2} />
+              <FileText size={18} color="#72C7FF" strokeWidth={2.2} />
               <span>Enter Your Text</span>
             </div>
             <div className="mob-text-actions">
@@ -306,7 +327,6 @@ export default function MobileDashboard({
                 type="button"
                 className="mob-action-btn mob-action-btn--copy"
                 onClick={handleCopyText}
-                disabled={!text}
                 aria-label="Copy text to clipboard"
               >
                 {copiedText
@@ -318,7 +338,6 @@ export default function MobileDashboard({
                 type="button"
                 className="mob-action-btn mob-action-btn--danger"
                 onClick={handleDeleteText}
-                disabled={!text}
                 aria-label="Clear all text"
               >
                 <Trash2 size={13} strokeWidth={2.2} />
@@ -327,17 +346,15 @@ export default function MobileDashboard({
             </div>
           </div>
 
-          <div className="mob-textarea-wrap">
-            <textarea
-              id="mob-text-input"
-              className="mob-textarea"
-              value={text}
-              onChange={(e) => setText(e.target.value.slice(0, charLimit))}
-              placeholder="Type or paste your text here to generate speech..."
-              maxLength={charLimit}
-              aria-label="Text to convert to speech"
-            />
-          </div>
+          <textarea
+            id="mob-text-input"
+            className="mob-textarea"
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, charLimit))}
+            placeholder="Type or paste your text here to generate speech..."
+            maxLength={charLimit}
+            aria-label="Text to convert to speech"
+          />
 
           <div className="mob-char-row">
             <span className={`mob-char-count${charAtLimit ? " at-limit" : charNearLimit ? " near-limit" : ""}`}>
@@ -348,7 +365,7 @@ export default function MobileDashboard({
 
         <div className="mob-card mob-voice-list-card">
           <div className="mob-card-title mob-voice-list-title">
-            <Mic size={18} color="#60B8FF" strokeWidth={2.2} />
+            <Mic size={18} color="#72C7FF" strokeWidth={2.2} />
             <span>VOICE</span>
           </div>
 
@@ -394,7 +411,7 @@ export default function MobileDashboard({
                       )}
                       {isSelected && (
                         <div className="mob-voice-check">
-                          <Check size={13} color="#60B8FF" strokeWidth={2.5} />
+                          <Check size={13} color="#72C7FF" strokeWidth={2.5} />
                         </div>
                       )}
                     </div>
@@ -422,7 +439,7 @@ export default function MobileDashboard({
 
         <div className="mob-card mob-controls-card">
           <div className="mob-card-title mob-controls-title">
-            <EqualizerSlidersIcon size={18} color="#60B8FF" />
+            <EqualizerSlidersIcon size={18} color="#72C7FF" />
             <span>Voice Controls</span>
           </div>
 

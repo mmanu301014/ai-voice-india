@@ -442,7 +442,7 @@ export default function VoiceStudio({
   // Dedicated responsive presentation matching uploaded reference design
   if (isMobile && activeMenuTab === 'home') {
     return (
-      <div className="ref-mobile-dashboard-view">
+      <div className="ref-mobile-dashboard-view" style={{ width: '100%' }}>
         <MobileDashboard
           user={user}
           token={token}
@@ -496,7 +496,58 @@ export default function VoiceStudio({
   // ── DESKTOP DASHBOARD PRESENTATION (Laptop / Desktop > 768px) ──
   // 100% UNCHANGED, exact original laptop dashboard
   return (
-    <div className="ref-dashboard-container" ref={dropdownRef}>
+    <>
+      {/* Responsive mobile fallback: guarantees MobileDashboard is shown on screens <= 768px */}
+      <div className="ref-mobile-dashboard-view">
+        <MobileDashboard
+          user={user}
+          token={token}
+          handleSignOut={handleSignOut}
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+          activeMenuTab={activeMenuTab}
+          setActiveMenuTab={setActiveMenuTab}
+          setActiveModal={setActiveModal}
+          setActiveTab={setActiveTab}
+          availableLanguages={availableLanguages}
+          currentLangObj={currentLangObj}
+          selectedLang={selectedLang}
+          setSelectedLang={setSelectedLang}
+          combinedVoiceList={combinedVoiceList}
+          activeVoiceMeta={activeVoiceMeta}
+          selectedVoiceId={selectedVoiceId}
+          setSelectedVoiceId={setSelectedVoiceId}
+          hasSelectedLang={hasSelectedLang}
+          setHasSelectedLang={setHasSelectedLang}
+          hasSelectedVoice={hasSelectedVoice}
+          setHasSelectedVoice={setHasSelectedVoice}
+          getCleanLangName={getCleanLangName}
+          getCleanVoiceName={getCleanVoiceName}
+          text={text}
+          setText={setText}
+          charCount={charCount}
+          copiedText={copiedText}
+          handleCopyText={handleCopyText}
+          handleDeleteText={handleDeleteText}
+          speed={speed}
+          setSpeed={setSpeed}
+          pitch={pitch}
+          setPitch={setPitch}
+          volume={volume}
+          setVolume={setVolume}
+          handleGenerate={handleGenerate}
+          isGenerating={isGenerating}
+          generationResult={generationResult}
+          errorMessage={errorMessage}
+          setErrorMessage={setErrorMessage}
+          handleSaveVoice={handleSaveVoice}
+          showUpgradeModal={showUpgradeModal}
+          setShowUpgradeModal={setShowUpgradeModal}
+          onOpenUpgrade={onOpenUpgrade}
+        />
+      </div>
+
+      <div className="ref-dashboard-container ref-desktop-dashboard-view" ref={dropdownRef}>
       
       {/* Upgrade Modal */}
       {showUpgradeModal && (
@@ -1343,5 +1394,6 @@ Content-Type: application/json
       )}
 
     </div>
+    </>
   );
 }

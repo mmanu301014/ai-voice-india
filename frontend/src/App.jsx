@@ -125,10 +125,14 @@ function MainApp() {
   const isDashboardView = activeTab === 'studio' || activeTab === 'home';
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', minHeight: '100vh',
-      backgroundColor: '#0D1117', color: '#F0F6FC'
-    }}>
+    <div
+      className="app-root-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}
+    >
       {/* Show Navbar & DemoBanner only on secondary subpages */}
       {!isDashboardView && (
         <>

@@ -4272,14 +4272,28 @@ textarea:focus, input:focus, select:focus {
 
 @media (max-width: 768px) {
   /* Hide Desktop Layout on Mobile */
-  .ref-desktop-dashboard-view {
+  .ref-desktop-dashboard-view,
+  .ref-dashboard-container {
     display: none !important;
   }
 
   /* Show Dedicated Mobile Layout on Mobile */
   .ref-mobile-dashboard-view {
     display: block !important;
-    width: 100%;
+    width: 100% !important;
+    min-height: 100vh !important;
+  }
+
+  .app-root-container {
+    background: #EDF6FF !important;
+    background-color: #EDF6FF !important;
+    color: #0A192F !important;
+  }
+
+  body, html {
+    background: #EDF6FF !important;
+    background-color: #EDF6FF !important;
+    color: #0A192F !important;
   }
 
   /* When on mobile home tab, hide the duplicate desktop header */
@@ -4291,11 +4305,6 @@ textarea:focus, input:focus, select:focus {
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-  }
-
-  .ref-dashboard-container {
-    background-color: #0D1117 !important;
-    overflow-x: hidden !important;
   }
 }
 
@@ -5078,6 +5087,7 @@ textarea:focus, input:focus, select:focus {
 /* ── Wrapper ── */
 .mob-wrapper {
   width: 100%;
+  min-height: 100vh;
   min-height: 100svh;
   background-color: #EDF6FF;
   background-image:
@@ -5086,7 +5096,8 @@ textarea:focus, input:focus, select:focus {
     radial-gradient(circle 320px at 80% 45%, rgba(199, 225, 255, 0.5) 0%, transparent 70%),
     radial-gradient(circle 420px at 20% 85%, rgba(224, 242, 254, 0.6) 0%, transparent 70%),
     linear-gradient(180deg, #E6F2FD 0%, #F5FAFF 40%, #EAF4FE 80%, #F2F8FF 100%);
-  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
   color: #0A192F;
   box-sizing: border-box;
   padding-bottom: 48px;
